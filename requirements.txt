@@ -1,0 +1,7 @@
+PyQt6
+pymupdf
+pytesseract
+Pillow
+PyInstaller
+opencv-python
+google-genai

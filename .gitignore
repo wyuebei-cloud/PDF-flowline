@@ -1,0 +1,30 @@
+# Virtual environment
+venv/
+.virtualenv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+*.spec
+
+# API key (user must provide their own)
+api_key.txt
+
+# Large media files
+Recording 2026-04-03.mp4
+*.mp4
+*.mov
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
