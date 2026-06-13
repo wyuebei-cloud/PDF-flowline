@@ -24,7 +24,7 @@ If you are running the project from the raw source code instead of the compiled 
    ```powershell
    python -m venv venv; .\venv\Scripts\activate; pip install PyQt6 pymupdf opencv-python google-genai Pillow numpy
    ```
-3. **Launch from Source**: Double-click **`启动程序.bat`** in the project root folder.
+3. **Launch from Source**: Double-click **`launch.bat`** in the project root folder.
 
 ---
 
@@ -83,7 +83,7 @@ If you are running the project from the raw source code instead of the compiled 
    ```powershell
    python -m venv venv; .\venv\Scripts\activate; pip install PyQt6 pymupdf opencv-python google-genai Pillow numpy
    ```
-3. **启动运行**：双击项目根目录下的 **`启动程序.bat`**。
+3. **启动运行**：双击项目根目录下的 **`launch.bat`**。
 
 ---
 

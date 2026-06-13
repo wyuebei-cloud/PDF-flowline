@@ -90,7 +90,7 @@
 
 ## ✨ 交付物清单 (Deliverables)
 
-1.  **`启动程序.bat`**：一键静默启动，自动识别 `venv` 环境。
+1.  **`launch.bat`**：一键静默启动，自动识别 `venv` 环境。
 2.  **`api_key.txt`**：剥离密钥管理。
 3.  **持久化配置文件**：通过注册表管理，不产生多余的本地缓存文件。
 
@@ -207,7 +207,7 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 
 | File | Purpose |
 |---|---|
-| `启动程序.bat` | One-click silent launcher; auto-detects the `venv` Python environment |
+| `launch.bat` | One-click silent launcher; auto-detects the `venv` Python environment |
 | `api_key.txt` | Decoupled API key management; read at startup, never hard-coded |
 | Registry settings | Managed via `QSettings`; no extra local cache files generated |
 | `design_history_log.md` | This file — bilingual development and design record |
