@@ -2,7 +2,7 @@
 
 **A lightweight desktop tool for civil engineers: box-select elevation numbers on scanned grading plans and automatically generate flow direction arrows.**
 
-<!-- Add a screenshot here: ![screenshot](assets/screenshot.png) -->
+![screenshot](assets/screenshot.png)
 
 ---
 
