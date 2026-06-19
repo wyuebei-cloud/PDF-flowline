@@ -16,6 +16,10 @@ dist/
 # API key (user must provide their own)
 api_key.txt
 
+# Test / staging files (not for distribution)
+TESTING-C-SheetSet.pdf
+ppocr_v6_onnx_test/
+
 # Large media files
 Recording 2026-04-03.mp4
 *.mp4

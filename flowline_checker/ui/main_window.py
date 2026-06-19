@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget, QToolBar, 
                              QStatusBar, QFileDialog, QLabel, QInputDialog, 
-                             QGraphicsEllipseItem, QGraphicsTextItem, QLineEdit, QSlider, QMessageBox, QGraphicsItemGroup)
+                             QGraphicsEllipseItem, QGraphicsTextItem, QSlider, QMessageBox, QGraphicsItemGroup)
 from PyQt6.QtGui import QAction, QColor, QPen, QPolygonF, QCursor, QPixmap, QPainter, QImage, QFont, QKeySequence
 from PyQt6.QtCore import Qt, QRectF, QPointF, QSettings, QThread, pyqtSignal
 import numpy as np
@@ -75,12 +75,8 @@ class MainWindow(QMainWindow):
         
         self.settings = QSettings("FlowlineCorp", "FlowlineChecker")
         
-        # Load API key from QSettings if it exists, otherwise fall back to api_key.txt inside OCREngine
-        saved_key = self.settings.value("GeminiApiKey", "")
-        if saved_key:
-            self.ocr_engine = OCREngine(api_key=saved_key)
-        else:
-            self.ocr_engine = OCREngine()
+        # Use PP-OCRv6 tiny_rec (local ONNX) — no API key needed
+        self.ocr_engine = OCREngine()
         
         self.current_page = 0
         self.temp_anchor = None
@@ -129,9 +125,9 @@ class MainWindow(QMainWindow):
         
         toolbar.addSeparator()
         
-        api_key_action = QAction("Set Gemini API Key", self)
-        api_key_action.triggered.connect(self._set_api_key)
-        toolbar.addAction(api_key_action)
+        self.api_key_action = QAction("OCR Engine: Local PP-OCRv6", self)
+        self.api_key_action.triggered.connect(self._show_ocr_info)
+        toolbar.addAction(self.api_key_action)
         
         toolbar.addSeparator()
         
@@ -220,13 +216,15 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status)
         self.status.showMessage("Ready")
 
-    def _set_api_key(self):
-        saved_key = self.settings.value("GeminiApiKey", "")
-        key, ok = QInputDialog.getText(self, "API Key", "Enter Google Generative AI API Key:", QLineEdit.EchoMode.Password, saved_key)
-        if ok and key:
-            self.settings.setValue("GeminiApiKey", key)
-            self.ocr_engine = OCREngine(api_key=key)
-            self.status.showMessage("Gemini API Key set successfully and saved.")
+    def _show_ocr_info(self):
+        QMessageBox.information(
+            self,
+            "OCR Engine",
+            "PP-OCRv6 tiny_rec (local, offline)\n\n"
+            "Baidu's latest OCR model running locally via ONNX Runtime.\n"
+            "No API key or internet connection required.\n\n"
+            f"Model: {self.ocr_engine._model.model_name if self.ocr_engine._model else 'loading...'}"
+        )
 
     def _toggle_select_mode(self, enabled):
         if enabled:

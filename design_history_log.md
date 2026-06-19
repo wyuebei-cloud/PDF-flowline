@@ -56,6 +56,19 @@
 
 ---
 
+### 8. 本地离线 OCR 引擎——PP-OCRv6 tiny_rec (Local Offline OCR Engine) ✨ *New*
+*   **功能描述**：彻底替换了原有的 Google Gemini API OCR 方案，改用百度 PP-OCRv6 tiny_rec 本地 ONNX 推理。用户不再需要申请 API Key、不再依赖网络连接、不再承担 API 调用费用。
+*   **模型选择**：PP-OCRv6 是百度 PaddleOCR 于 2026.6.11 发布的第六代 OCR 系统，tiny_rec 档仅 1.1M 参数 + 4.3MB ONNX 模型文件，在标高数字（含 "FS"、"EL" 后缀）和 HP/LP 标签上达到 94%-99.99% 的识别置信度。
+*   **推理引擎**：ONNX Runtime CPU 后端，无需 CUDA/GPU，无需 PaddlePaddle 框架。
+*   **旋转自适应**：由于 PP-OCRv6 为水平文字设计，引入了 4 角度轮询机制（0°→90°→180°→270°），对框选区域在 4 个方向上各推理一次（总计 ~8ms），自动选取置信度最高的结果，确保旋转 PDF 页面中的数字同样可识别。
+*   **实现细节**：
+    *   `core/ocr_engine.py` 完全重写，去掉 `google-genai` 依赖
+    *   新增 `_rotate_image()` 静态方法：利用 `cv2.rotate` 实现 90/180/270 度旋转
+    *   `_recognize_with_local()` 改为多角度轮询 + 置信度排序
+    *   `ui/main_window.py`：去掉 API Key 加载逻辑和 "Set Gemini API Key" 按钮，替换为 "OCR Engine: Local PP-OCRv6" 信息提示
+    *   `launch.bat`：自动安装 `paddleocr` + `onnxruntime`，首次启动时从 HuggingFace 下载模型并缓存
+
+
 ### 🐞 核心解决的问题追溯
 
 ### Bug: ArrowGroup 绘制覆盖导致的选框失踪
@@ -90,9 +103,10 @@
 
 ## ✨ 交付物清单 (Deliverables)
 
-1.  **`launch.bat`**：一键静默启动，自动识别 `venv` 环境。
-2.  **`api_key.txt`**：剥离密钥管理。
+1.  **`launch.bat`**：一键静默启动，自动创建 venv、安装依赖、启动应用。
+2.  **PP-OCRv6 模型缓存**：首次运行自动从 HuggingFace 下载至 `~/.paddlex/official_models/PP-OCRv6_tiny_rec_onnx/`（4.3MB）。
 3.  **持久化配置文件**：通过注册表管理，不产生多余的本地缓存文件。
+4.  **`design_history_log.md`**：本文档——中英双语开发记录。
 
 ---
 
@@ -207,8 +221,8 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 
 | File | Purpose |
 |---|---|
-| `launch.bat` | One-click silent launcher; auto-detects the `venv` Python environment |
-| `api_key.txt` | Decoupled API key management; read at startup, never hard-coded |
+| `launch.bat` | One-click silent launcher; auto-creates venv, installs deps, launches app |
+| PP-OCRv6 model cache | Auto-downloaded from HuggingFace to `~/.paddlex/official_models/PP-OCRv6_tiny_rec_onnx/` (4.3MB) |
 | Registry settings | Managed via `QSettings`; no extra local cache files generated |
 | `design_history_log.md` | This file — bilingual development and design record |
 

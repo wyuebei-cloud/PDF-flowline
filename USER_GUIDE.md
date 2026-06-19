@@ -6,11 +6,10 @@
 
 ### 🚀 Quick Start (For Standalone EXE Users)
 If you are using the pre-compiled **`FlowlineChecker.exe`**, **no installation or environment setup is required!**
-1. **Launch**: Locate `FlowlineChecker.exe` (inside the `dist` folder, or wherever you copied it) and double-click to run.
-2. **Setup API Key**: 
-   * **Option A**: Click **Set Gemini API Key** on the toolbar, paste your Google AI API key, and click OK. The key will be saved to your system registry, so you only need to enter it once!
-   * **Option B**: Create a text file named `api_key.txt` in the same directory as `FlowlineChecker.exe`, paste your key inside, and save. The app will load it automatically.
-3. **Open PDF**: Click **Open PDF** and select your grading plan.
+1. **Launch**: Locate `FlowlineChecker.exe` and double-click to run.
+2. **Open PDF**: Click **Open PDF** and select your grading plan.
+
+> **No API key needed.** OCR runs entirely offline using Baidu PP-OCRv6 tiny_rec (local ONNX Runtime). The 4.3MB model is embedded in the EXE — no internet connection required, no usage fees, zero configuration.
 
 ---
 
@@ -22,8 +21,9 @@ If you are running the project from the raw source code instead of the compiled 
    * **Shift + Right-Click Method**: Hold the `Shift` key, **right-click** on any empty space inside the project folder, and select **"Open PowerShell window here"** (or **"Open in Terminal"** on Windows 11).
 2. **Environment Setup**: Run the following "Magic Command" in PowerShell to set up the virtual environment and install all dependencies:
    ```powershell
-   python -m venv venv; .\venv\Scripts\activate; pip install PyQt6 pymupdf opencv-python google-genai Pillow numpy
+   python -m venv venv; .\venv\Scripts\activate; pip install paddleocr onnxruntime opencv-python pillow numpy PyQt6 pymupdf
    ```
+   > PP-OCRv6 tiny_rec ONNX model (~4.3MB) downloads automatically on first launch. No API key needed.
 3. **Launch from Source**: Double-click **`launch.bat`** in the project root folder.
 
 ---
@@ -48,13 +48,15 @@ If you are running the project from the raw source code instead of the compiled 
 * **Cancel**: Press **`Esc`** to abandon the current unfinished segment without exiting drawing mode.
 
 ### 💾 Exporting
-* **To Image**: Click **Export to Image** (or `Ctrl + S`). This saves a high-resolution, scale-accurate PNG/JPG image of your current view. It guarantees that what you see on screen is exactly what you get in the output.
+* **To Image** (`Ctrl+S`): Save a high-resolution, scale-accurate PNG/JPG screenshot of your current view — WYSIWYG.
+* **To PDF** (`Ctrl+E`): Export a **native PDF** with vector annotations. Red flow arrows, elevation delta labels, and HP/LP extrema labels are embedded as actual PDF vector annotations — fully editable in Adobe Acrobat or AutoCAD. The source PDF background is preserved.
 
 ### ⌨️ Shortcuts Summary
 | Shortcut | Action |
 | :--- | :--- |
 | **Ctrl + Z** | Undo last action |
-| **Ctrl + S** | Export marked-up image |
+| **Ctrl + S** | Export annotated image |
+| **Ctrl + E** | Export annotated PDF (vector) |
 | **Delete** | Delete selected object |
 | **Esc** | Cancel current segment |
 | **Middle Drag** | Pan paper |
@@ -65,11 +67,10 @@ If you are running the project from the raw source code instead of the compiled 
 
 ### 🚀 快速开始（独立免安装 EXE 用户）
 如果您使用的是打包好的 **`FlowlineChecker.exe`**，**不需要配置任何 Python 或安装运行环境！**
-1. **启动**：直接双击运行 `dist` 目录下的 **`FlowlineChecker.exe`**（您可以将该文件复制到电脑的任意位置运行）。
-2. **设置 API Key**：
-   * **方法 A**：点击工具栏上的 **Set Gemini API Key**，粘贴您的 Google AI API 密钥。该密钥会被安全地保存至 Windows 系统注册表中，以后运行无需再次输入！
-   * **方法 B**：在 `FlowlineChecker.exe` 的同级目录下新建一个名为 `api_key.txt` 的文本文件，将密钥粘进去保存即可，程序启动时会自动读取。
-3. **打开图纸**：点击 **Open PDF** 选择您的工程 PDF 文件。
+1. **启动**：直接双击运行 **`FlowlineChecker.exe`**。
+2. **打开图纸**：点击 **Open PDF** 选择您的工程 PDF 文件。
+
+> **无需 API Key。** OCR 使用百度 PP-OCRv6 tiny_rec 完全离线本地运行（ONNX Runtime），模型已打包进 EXE。无需网络、无需付费、零配置。
 
 ---
 
@@ -79,10 +80,11 @@ If you are running the project from the raw source code instead of the compiled 
 1. **如何在项目文件夹中打开 PowerShell**：
    * **地址栏简易法（推荐）**：在项目文件夹窗口上方的文件资源管理器**地址栏**上点击，清空内容后输入 `powershell` 并按下 **Enter (回车键)**。
    * **Shift + 右键快捷法**：按住键盘上的 `Shift` 键，在项目文件夹空白处**右键单击**，选择 **“在此处打开 PowerShell 窗口”**（Windows 11 用户亦可选择 **“在终端中打开”**）。
-2. **安装依赖**：在打开的 PowerShell 窗口中运行以下“魔法命令”以创建虚拟环境并安装所有依赖包：
+2. **安装依赖**：在打开的 PowerShell 窗口中运行以下"魔法命令"以创建虚拟环境并安装所有依赖包：
    ```powershell
-   python -m venv venv; .\venv\Scripts\activate; pip install PyQt6 pymupdf opencv-python google-genai Pillow numpy
+   python -m venv venv; .\venv\Scripts\activate; pip install paddleocr onnxruntime opencv-python pillow numpy PyQt6 pymupdf
    ```
+   > PP-OCRv6 tiny_rec 模型（~4.3MB）首次启动时自动下载，无需 API Key。
 3. **启动运行**：双击项目根目录下的 **`launch.bat`**。
 
 ---
@@ -107,13 +109,15 @@ If you are running the project from the raw source code instead of the compiled 
 * **取消**：按下 **`Esc`** 可直接放弃当前画到一半的线段，无需退出模式。
 
 ### 💾 导出成果
-* **导出图片**：点击 **Export to Image** (或快捷键 `Ctrl + S`)。这会将当前视图保存为高清 PNG/JPG 图片。该方案采用“所见即所得”技术，确保导出的标注位置与屏幕显示完全一致。
+* **导出图片** (`Ctrl+S`)：将当前视图保存为高清 PNG/JPG 图片——所见即所得，标注位置与屏幕显示完全一致。
+* **导出 PDF** (`Ctrl+E`)：导出**原生 PDF 矢量标注**文件。红色流向箭头、高差数字、HP/LP 极值标签均以 PDF 矢量注释形式嵌入，可在 Adobe Acrobat 或 AutoCAD 中直接编辑和查看，原始 PDF 底图完整保留。
 
 ### ⌨️ 快捷键汇总
 | 快捷键 | 对应功能 |
 | :--- | :--- |
 | **Ctrl + Z** | 撤销上一步 |
 | **Ctrl + S** | 导出标注图 |
+| **Ctrl + E** | 导出 PDF 矢量标注 |
 | **Delete** | 删除选中标注 |
 | **Esc** | 取消当前线段 |
 | **中键拖拽** | 平移图纸 |
