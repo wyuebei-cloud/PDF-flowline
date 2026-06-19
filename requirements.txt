@@ -1,7 +1,7 @@
 PyQt6
 pymupdf
-pytesseract
-Pillow
-PyInstaller
+paddleocr>=3.7.0
+onnxruntime>=1.27
 opencv-python
-google-genai
+pillow
+numpy

@@ -11,21 +11,18 @@ PP-OCRv6 tiny_rec 本地离线 OCR 引擎（替换 Gemini API）
 """
 
 import os
-import sys
-import numpy as np
 import cv2
-from PIL import Image
+import numpy as np
 from paddleocr import TextRecognition
 
 
 class OCREngine:
-    """本地离线 OCR 引擎，替换原有的 Gemini API 调用"""
+    """本地离线 OCR 引擎 (PP-OCRv6 tiny_rec + ONNX Runtime)"""
 
     # 全局共享模型实例（进程内单例）
     _model = None
 
-    def __init__(self, api_key=None):
-        # api_key 参数保留仅用于向后兼容，不再使用
+    def __init__(self):
         self._init_model()
 
     @classmethod

@@ -28,7 +28,7 @@ class OCRWorker(QThread):
             value, raw_text, model_name = self.ocr_engine.recognize_elevation(preprocessed)
             self.finished.emit(value, raw_text, model_name, self.point_obj)
         except Exception as e:
-            self.finished.emit(None, f"API_ERROR: {str(e)}", "Error", self.point_obj)
+            self.finished.emit(None, f"LOCAL_ERROR: {str(e)}", "Error", self.point_obj)
 
 class ClickableTextItem(QGraphicsTextItem):
     def __init__(self, text, point_obj, click_callback):
@@ -125,9 +125,9 @@ class MainWindow(QMainWindow):
         
         toolbar.addSeparator()
         
-        self.api_key_action = QAction("OCR Engine: Local PP-OCRv6", self)
-        self.api_key_action.triggered.connect(self._show_ocr_info)
-        toolbar.addAction(self.api_key_action)
+        self.ocr_info_action = QAction("OCR Engine: Local PP-OCRv6", self)
+        self.ocr_info_action.triggered.connect(self._show_ocr_info)
+        toolbar.addAction(self.ocr_info_action)
         
         toolbar.addSeparator()
         
@@ -378,7 +378,7 @@ class MainWindow(QMainWindow):
             display_text = f"{value:.2f}"
         else:
             display_text = raw_text if raw_text else "?"
-            if display_text.startswith("API_ERROR:"):
+            if display_text.startswith(("API_ERROR:", "LOCAL_ERROR:")):
                 display_text = "?"
             point.value = 0.0
             point.confirmed = False
