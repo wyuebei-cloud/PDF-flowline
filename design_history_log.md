@@ -226,6 +226,11 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
   - Toolbar shows the resolved scale as a familiar drawing scale (`Scale: 1" = 20.0'`, derived from ft/px × render DPI); `Esc` cancels an in-progress calibration.
 - **Deliberate omission**: The Greek Δ glyph is kept off the exported label's first line — PyMuPDF freetext annotations with the base-14 `helv-bold` font are Latin-1 encoded and would garble non-Latin glyphs.
 
+### Bug: Calibration State Leaked Across Context Switches (Code-Review Fixes)
+- **Problem**: A code review of the calibration feature found four confirmed state-machine holes: (1) page navigation did not cancel an in-progress calibration, so the two calibration clicks could straddle two pages and store a bogus ft/px under the new page — every arrow there would show a wrong-but-plausible L/S%; (2) `Ctrl+Z` pressed mid-calibration fell through `_undo`'s `points/temp_anchor` guard and permanently deleted the last committed arrow; (3) toggling Calibrate Scale while a flowline point's OCR was still pending let `_finish_flowline` early-return, then activated CALIBRATE anyway over the orphaned half-drawn flowline; (4) `Export to Image` rendered the scene with the lime calibration markers still present, baking scaffolding into the deliverable.
+- **Fix**: One chokepoint, `_cancel_calibration()` (uncheck the action; its `toggled(False)` handler owns the teardown), invoked at every context switch: `_prev_page`/`_next_page`, `_undo`, `_export_image`, `_export_pdf`, and `_cancel_current`. For (3), `_toggle_calibrate_mode` now verifies the flowline actually finalized (`self.points or self.temp_anchor` empty after unchecking Draw Flowline); if the finalize was blocked it re-enters drawing mode and refuses to activate calibration.
+- **Lesson**: A checkable tool mode is a resource with a lifecycle — every action that changes page, document, or output context must release it explicitly, not assume the user toggled it off first.
+
 ---
 
 ## ✨ Deliverables

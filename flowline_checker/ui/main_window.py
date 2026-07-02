@@ -308,6 +308,12 @@ class MainWindow(QMainWindow):
         if enabled:
             if self.select_mode_action.isChecked():
                 self.select_mode_action.setChecked(False)  # finalizes any in-progress flowline
+                if self.points or self.temp_anchor:
+                    # Finalize was blocked (OCR pending / invalid value) — stay in
+                    # drawing mode instead of entering calibration over a half-built flowline
+                    self.select_mode_action.setChecked(True)
+                    self.calibrate_action.setChecked(False)
+                    return
             self.calib_points = []
             self.viewer.interaction_mode = 'CALIBRATE'
             self.viewer.viewport().setCursor(Qt.CursorShape.CrossCursor)
@@ -318,6 +324,11 @@ class MainWindow(QMainWindow):
             if self.viewer.interaction_mode == 'CALIBRATE':
                 self.viewer.interaction_mode = 'NONE'
                 self.viewer.viewport().unsetCursor()
+
+    def _cancel_calibration(self):
+        """Abort an in-progress calibration before any context switch (page nav, undo, export)."""
+        if self.calibrate_action.isChecked():
+            self.calibrate_action.setChecked(False)
 
     def _clear_calib_visuals(self):
         for item in self.calib_visuals:
@@ -604,10 +615,11 @@ class MainWindow(QMainWindow):
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Marked Up Image", last_dir, "PNG Image (*.png);;JPEG Image (*.jpg)")
         if file_path:
             self.settings.setValue("LastExportedDir", os.path.dirname(file_path))
-            
+
+            self._cancel_calibration()
             if self.points:
                 self._finish_flowline()
-                
+
             scene = self.viewer.scene
             rect = scene.sceneRect()
             
@@ -642,9 +654,10 @@ class MainWindow(QMainWindow):
         if file_path:
             self.settings.setValue("LastExportedDir", os.path.dirname(file_path))
             
+            self._cancel_calibration()
             if self.points or self.temp_anchor:
                 self._finish_flowline()
-                
+
             try:
                 # Open a separate copy to keep the active loaded document clean in memory
                 temp_handler = PDFHandler(self.pdf_handler.filepath)
@@ -743,6 +756,7 @@ class MainWindow(QMainWindow):
 
     def _prev_page(self):
         if self.pdf_handler and self.current_page > 0:
+            self._cancel_calibration()
             if self.points or self.temp_anchor:
                 self._finish_flowline()
             self.current_page -= 1
@@ -752,6 +766,7 @@ class MainWindow(QMainWindow):
 
     def _next_page(self):
         if self.pdf_handler and self.current_page < self.pdf_handler.get_page_count() - 1:
+            self._cancel_calibration()
             if self.points or self.temp_anchor:
                 self._finish_flowline()
             self.current_page += 1
@@ -760,6 +775,10 @@ class MainWindow(QMainWindow):
             self._refresh_all_arrows()
 
     def _undo(self):
+        if self.calibrate_action.isChecked():
+            self._cancel_calibration()
+            self.status.showMessage("Calibration cancelled.")
+            return
         if self.points or self.temp_anchor:
             self._cancel_current()
             return
@@ -772,7 +791,7 @@ class MainWindow(QMainWindow):
 
     def _cancel_current(self):
         if self.calibrate_action.isChecked():
-            self.calibrate_action.setChecked(False)
+            self._cancel_calibration()
             self.status.showMessage("Calibration cancelled.")
             return
         if self.points or self.temp_anchor:

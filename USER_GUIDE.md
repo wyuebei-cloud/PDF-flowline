@@ -47,6 +47,7 @@ Notes:
 * Calibration is stored **per page** (detail sheets often use a different scale). Pages without calibration keep showing Δ only.
 * Calibrated labels are also written into image and PDF exports.
 * Press **`Esc`** to cancel a calibration in progress; recalibrate at any time to overwrite the page scale.
+* Changing pages, pressing `Ctrl+Z`, or starting an export automatically cancels an unfinished calibration — both clicks must land on the same page.
 
 ### 🎨 Styling & Controls
 * **Arrow Size Slider**: Adjust the thickness and arrowhead scale of all arrows globally in real time.
@@ -120,6 +121,7 @@ Notes:
 * 比例按**页**存储（详图页往往比例不同）。未校准的页面仍只显示 Δ。
 * 校准后的标签同样会写入图片和 PDF 导出结果。
 * 校准过程中按 **`Esc`** 可取消；任何时候都可以重新校准覆盖当前页比例。
+* 翻页、按 `Ctrl+Z` 或开始导出会自动取消未完成的校准——两个校准点必须落在同一页上。
 
 ### 🎨 样式与控制
 * **Arrow Size 滑动条**：全局实时调节所有箭头的粗细和箭头帽的大小。
