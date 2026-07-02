@@ -36,6 +36,18 @@ If you are running the project from the raw source code instead of the compiled 
 5. **Edit Values (Optional)**: If you notice a typo or if the OCR failed (showing `?`), single-click the blue number at any time to open the edit dialog and correct it.
 6. **Finish**: Click **Done** to finalize the sequence. The tool will automatically calculate flow directions and label HP (High Point) / LP (Low Point) extrema.
 
+### 📐 Scale Calibration & Slope Display
+By default arrows are labeled with the elevation difference (Δ) only. To also see **run length (L)** and **slope (S%)** on every arrow:
+1. Click **Calibrate Scale** on the toolbar. The cursor becomes a crosshair.
+2. Click two points on the plan that are a known real-world distance apart — the endpoints of the graphic scale bar, or any dimensioned line.
+3. Enter that real-world distance (in feet) in the dialog.
+4. The toolbar shows the resolved scale (e.g. `Scale: 1" = 20.0'`), and every arrow on the page — existing and future — is relabeled as `Δ` plus `L=xx.xx' S=x.xx%`. Slope is computed as Δ ÷ horizontal length × 100%.
+
+Notes:
+* Calibration is stored **per page** (detail sheets often use a different scale). Pages without calibration keep showing Δ only.
+* Calibrated labels are also written into image and PDF exports.
+* Press **`Esc`** to cancel a calibration in progress; recalibrate at any time to overwrite the page scale.
+
 ### 🎨 Styling & Controls
 * **Arrow Size Slider**: Adjust the thickness and arrowhead scale of all arrows globally in real time.
 * **Text Size Slider**: Adjust the size of the Delta (Δ) and HP/LP labels globally in real time.
@@ -96,6 +108,18 @@ If you are running the project from the raw source code instead of the compiled 
 4. **异步识别**：框选区域左侧会立即生成蓝色的暂存数字（初始为 `...` 代表识别中）。此时界面已切回定位模式，您可以直接点击下一个物理点和框选数字，无需等待。
 5. **修改数值（可选）**：如果识别有误或显示为 `?`，您可以随时**单击**屏幕上的任意蓝色数字，在弹出的对话框中进行手动修改。
 6. **结算**：点击 **Done** 结束这一组连线。程序会自动清除蓝色数字并生成流向箭头、计算高差，并识别 HP/LP 极值点。
+
+### 📐 比例尺校准与坡度显示
+默认情况下箭头只标注高差 (Δ)。若需在每个箭头上同时显示**长度 (L)** 和**坡度 (S%)**：
+1. 点击工具栏上的 **Calibrate Scale**，光标变为十字准星。
+2. 在图纸上点击两个已知实际距离的点——例如图形比例尺（scale bar）的两端，或任意一段有尺寸标注的线。
+3. 在弹出的对话框中输入这两点的实际距离（单位：英尺）。
+4. 工具栏会显示换算后的比例（如 `Scale: 1" = 20.0'`），当前页所有箭头（包括已画的和之后画的）标签会变为 `Δ` + `L=xx.xx' S=x.xx%` 两行。坡度按 Δ ÷ 水平长度 × 100% 计算。
+
+说明：
+* 比例按**页**存储（详图页往往比例不同）。未校准的页面仍只显示 Δ。
+* 校准后的标签同样会写入图片和 PDF 导出结果。
+* 校准过程中按 **`Esc`** 可取消；任何时候都可以重新校准覆盖当前页比例。
 
 ### 🎨 样式与控制
 * **Arrow Size 滑动条**：全局实时调节所有箭头的粗细和箭头帽的大小。

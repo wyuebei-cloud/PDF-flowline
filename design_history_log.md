@@ -215,6 +215,17 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 ### Design Decision: Per-Page Segment Storage
 - Flowline segments are stored in `all_finished_segments: dict[int, list[tuple]]`, keyed by page index. This allows independent undo, display, and export per page without cross-page contamination.
 
+### Feature: Scale Calibration + Slope/Length Display
+- **Problem**: Arrows only showed the elevation difference (Δ). Scanned plans carry no reliable machine-readable scale, so run length and slope (%) — the numbers a reviewer actually checks against the design — could not be displayed.
+- **Design**: Two-point calibration instead of typed drawing scale ("1\"=20'"). Scans are frequently re-plotted or resized, so trusting the title-block scale is unsafe; clicking both ends of the printed graphic scale bar (or any dimensioned line) and entering the real distance measures the *actual* feet-per-pixel of the raster.
+- **Implementation**:
+  - New `'CALIBRATE'` interaction mode in `PDFViewer` reuses the existing `point_selected` signal; `MainWindow._handle_anchor` routes clicks by mode.
+  - Scale stored per page in `page_scales: dict[int, float]` (ft/pixel), mirroring the per-page segment storage decision — detail sheets often use a different scale. Uncalibrated pages keep the legacy Δ-only label.
+  - `_format_arrow_text()` is the single label source shared by on-screen drawing and PDF export: `Δ` on line 1, `L=xx.xx' S=x.xx%` on line 2 (slope = Δ / horizontal length × 100). Calibrating a page retroactively relabels its existing arrows via `_refresh_all_arrows()`.
+  - `PDFHandler.add_arrow_annotation` gained an optional `label_text` param; the freetext box now grows with line count and longest line, and the tangential offset scales with text height so two-line labels clear the arrow body.
+  - Toolbar shows the resolved scale as a familiar drawing scale (`Scale: 1" = 20.0'`, derived from ft/px × render DPI); `Esc` cancels an in-progress calibration.
+- **Deliberate omission**: The Greek Δ glyph is kept off the exported label's first line — PyMuPDF freetext annotations with the base-14 `helv-bold` font are Latin-1 encoded and would garble non-Latin glyphs.
+
 ---
 
 ## ✨ Deliverables

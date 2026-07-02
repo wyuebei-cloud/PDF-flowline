@@ -34,7 +34,7 @@ class PDFHandler:
     def get_page_count(self):
         return self.num_pages
 
-    def add_arrow_annotation(self, page_number, p1, p2, visual_arrow_size, text_size, drawn_labels=None):
+    def add_arrow_annotation(self, page_number, p1, p2, visual_arrow_size, text_size, drawn_labels=None, label_text=None):
         page = self.doc.load_page(page_number)
         
         # 1. Absolute geometric mapping algorithm (handles Rotation + CropBox Offsets + DPI Zoom)
@@ -71,17 +71,21 @@ class PDFHandler:
         # Apply changes permanently to PDF geometry buffer
         annot.update()
 
-        # 4. Add Delta Text Annotation (freetext)
-        delta = abs(p1.value - p2.value)
-        delta_text = f"{delta:.2f}"
-        
+        # 4. Add Delta/Length/Slope Text Annotation (freetext)
+        if label_text is None:
+            delta = abs(p1.value - p2.value)
+            label_text = f"{delta:.2f}"
+        label_lines = label_text.split("\n")
+        num_lines = len(label_lines)
+        max_line_len = max(len(line) for line in label_lines)
+
         # Calculate position in screen space first (highly robust to rotation/reflection)
         mid_x = (p1.x + p2.x) / 2
         mid_y = (p1.y + p2.y) / 2
         dx = p2.x - p1.x
         dy = p2.y - p1.y
         angle = math.atan2(dy, dx)
-        offset_distance = text_size * 0.8
+        offset_distance = text_size * 0.8 * (1 + 0.5 * (num_lines - 1))
         offset_x = -math.sin(angle) * offset_distance
         offset_y = math.cos(angle) * offset_distance
         
@@ -91,10 +95,10 @@ class PDFHandler:
         # Transform the target label center back to unrotated PDF page geometry
         scaled_text_center = fitz.Point(text_screen_x + screen_rect.x0, text_screen_y + screen_rect.y0) * inv_trans
         
-        # Scale font size and boxes back to PDF point space
+        # Scale font size and boxes back to PDF point space; box grows with the longest line and line count
         pdf_font_size = max(6.0, text_size / zoom)
-        box_w = pdf_font_size * 3.5
-        box_h = pdf_font_size * 1.5
+        box_w = pdf_font_size * max(3.5, 0.62 * max_line_len)
+        box_h = pdf_font_size * 1.5 * num_lines
         
         # Swap box width/height if the page is rotated 90 or 270 degrees
         if page.rotation in (90, 270):
@@ -113,7 +117,7 @@ class PDFHandler:
         
         text_annot = page.add_freetext_annot(
             text_rect,
-            delta_text,
+            label_text,
             fontsize=pdf_font_size,
             fontname="helv-bold",
             text_color=red_color,

@@ -81,6 +81,11 @@ class MainWindow(QMainWindow):
         self.current_page = 0
         self.temp_anchor = None
         self.temp_visuals = [] # Track yellow dots and dashed lines for cleanup
+
+        # Scale calibration: {page_idx: feet_per_pixel}
+        self.page_scales = {}
+        self.calib_points = []
+        self.calib_visuals = []
         
         # Build custom red crosshair for physical point selection
         self.red_cross_cursor = self._create_red_crosshair()
@@ -155,7 +160,19 @@ class MainWindow(QMainWindow):
         self.finish_flowline_action.triggered.connect(self._finish_flowline)
         self.finish_flowline_action.setEnabled(False)
         toolbar.addAction(self.finish_flowline_action)
-        
+
+        toolbar.addSeparator()
+
+        self.calibrate_action = QAction("Calibrate Scale", self)
+        self.calibrate_action.setCheckable(True)
+        self.calibrate_action.setToolTip("Click two points of a known distance to calibrate the page scale for slope/length display")
+        self.calibrate_action.toggled.connect(self._toggle_calibrate_mode)
+        self.calibrate_action.setEnabled(False)
+        toolbar.addAction(self.calibrate_action)
+
+        self.scale_info = QLabel(" Scale: not set ")
+        toolbar.addWidget(self.scale_info)
+
         toolbar.addSeparator()
         
         size_label = QLabel(" Arrow Size: ")
@@ -228,6 +245,8 @@ class MainWindow(QMainWindow):
 
     def _toggle_select_mode(self, enabled):
         if enabled:
+            if self.calibrate_action.isChecked():
+                self.calibrate_action.setChecked(False)
             self.viewer.interaction_mode = 'ANCHOR'
             self.viewer.viewport().setCursor(self.red_cross_cursor)
             step = len(self.points) + 1
@@ -285,6 +304,85 @@ class MainWindow(QMainWindow):
         self.finish_flowline_action.setEnabled(False)
         self.status.showMessage("Flowline completed. Ready.")
 
+    def _toggle_calibrate_mode(self, enabled):
+        if enabled:
+            if self.select_mode_action.isChecked():
+                self.select_mode_action.setChecked(False)  # finalizes any in-progress flowline
+            self.calib_points = []
+            self.viewer.interaction_mode = 'CALIBRATE'
+            self.viewer.viewport().setCursor(Qt.CursorShape.CrossCursor)
+            self.status.showMessage("Calibrate Scale: click the first point of a known distance (e.g. one end of the scale bar)")
+        else:
+            self._clear_calib_visuals()
+            self.calib_points = []
+            if self.viewer.interaction_mode == 'CALIBRATE':
+                self.viewer.interaction_mode = 'NONE'
+                self.viewer.viewport().unsetCursor()
+
+    def _clear_calib_visuals(self):
+        for item in self.calib_visuals:
+            if item.scene() == self.viewer.scene:
+                self.viewer.scene.removeItem(item)
+        self.calib_visuals = []
+
+    def _handle_calibration_click(self, pt: QPointF):
+        self.calib_points.append(pt)
+        marker = QGraphicsEllipseItem(pt.x() - 4, pt.y() - 4, 8, 8)
+        marker.setBrush(QColor("lime"))
+        marker.setPen(QPen(QColor("darkGreen"), 1))
+        self.viewer.scene.addItem(marker)
+        self.calib_visuals.append(marker)
+
+        if len(self.calib_points) < 2:
+            self.status.showMessage("Calibrate Scale: click the second point")
+            return
+
+        c1, c2 = self.calib_points
+        pen = QPen(QColor("darkGreen"), 2, Qt.PenStyle.DashLine)
+        line = self.viewer.scene.addLine(c1.x(), c1.y(), c2.x(), c2.y(), pen)
+        self.calib_visuals.append(line)
+
+        pixel_dist = math.hypot(c2.x() - c1.x(), c2.y() - c1.y())
+        if pixel_dist < 2:
+            QMessageBox.warning(self, "Calibration", "The two points are too close together. Please pick two points further apart.")
+            self._clear_calib_visuals()
+            self.calib_points = []
+            self.status.showMessage("Calibrate Scale: click the first point of a known distance")
+            return
+
+        distance, ok = QInputDialog.getDouble(
+            self, "Calibrate Scale",
+            "Real-world distance between the two points (ft):",
+            20.0, 0.0001, 1e9, 4
+        )
+        if ok and distance > 0:
+            self.page_scales[self.current_page] = distance / pixel_dist
+            self._update_scale_info()
+            self._refresh_all_arrows()
+            self.status.showMessage(f"Scale calibrated: {pixel_dist:.1f} px = {distance:g} ft. Arrows now show length and slope.")
+        else:
+            self.status.showMessage("Calibration cancelled.")
+        self.calibrate_action.setChecked(False)
+
+    def _update_scale_info(self):
+        scale = self.page_scales.get(self.current_page)
+        if scale and self.pdf_handler:
+            # Express as a familiar drawing scale: feet per plotted inch at render DPI
+            ft_per_inch = scale * self.pdf_handler.dpi
+            self.scale_info.setText(f' Scale: 1" = {ft_per_inch:.1f}\' ')
+        else:
+            self.scale_info.setText(" Scale: not set ")
+
+    def _format_arrow_text(self, p1, p2, page_idx):
+        delta = abs(p1.value - p2.value)
+        scale = self.page_scales.get(page_idx)
+        if scale:
+            length = math.hypot(p2.x - p1.x, p2.y - p1.y) * scale
+            if length > 1e-6:
+                slope = delta / length * 100.0
+                return f"{delta:.2f}\nL={length:.2f}' S={slope:.2f}%"
+        return f"{delta:.2f}"
+
     def _refresh_all_arrows(self):
         # Clear currently drawn permanent arrows
         for item in self.rendered_arrows_graphics:
@@ -304,6 +402,9 @@ class MainWindow(QMainWindow):
             self._draw_final_arrow(p1, p2)
 
     def _handle_anchor(self, pt: QPointF):
+        if self.viewer.interaction_mode == 'CALIBRATE':
+            self._handle_calibration_click(pt)
+            return
         self.temp_anchor = pt
         # Visual indicator
         marker = QGraphicsEllipseItem(pt.x()-3, pt.y()-3, 6, 6)
@@ -442,24 +543,24 @@ class MainWindow(QMainWindow):
         poly_item = self.viewer.scene.addPolygon(polygon, pen, brush)
         arrow_group.addToGroup(poly_item)
         
-        # 3. Calculate Delta and draw Text
-        delta = abs(p1.value - p2.value)
-        delta_text = f"{delta:.2f}"
-        
+        # 3. Calculate Delta (and Length/Slope when the page scale is calibrated) and draw Text
+        delta_text = self._format_arrow_text(p1, p2, self.current_page)
+
         text_item = QGraphicsTextItem(delta_text)
         text_size = self.text_size_slider.value()
-        
+
         font = QFont("Arial", text_size)
         font.setBold(True)
         text_item.setFont(font)
         text_item.setDefaultTextColor(QColor("red"))
-        
+
         # Position the text midway
         mid_x = (start.x + end.x) / 2
         mid_y = (start.y + end.y) / 2
-        
-        # Dynamic tangential offset so it doesn't overlap the line
-        offset_distance = text_size * 0.8
+
+        # Dynamic tangential offset so it doesn't overlap the line (taller text needs more clearance)
+        num_lines = delta_text.count("\n") + 1
+        offset_distance = text_size * 0.8 * (1 + 0.5 * (num_lines - 1))
         offset_x = -math.sin(angle) * offset_distance
         offset_y = math.cos(angle) * offset_distance
         
@@ -557,7 +658,8 @@ class MainWindow(QMainWindow):
                         text_size = self.text_size_slider.value()
                         
                         temp_handler.add_arrow_annotation(
-                            page_idx, start, end, arrow_size, text_size, drawn_labels
+                            page_idx, start, end, arrow_size, text_size, drawn_labels,
+                            label_text=self._format_arrow_text(p1, p2, page_idx)
                         )
                 
                 temp_handler.save_copy(file_path)
@@ -610,6 +712,10 @@ class MainWindow(QMainWindow):
             self.current_page = 0
             self.all_finished_segments = {}
             self.rendered_arrows_graphics = []
+            self.page_scales = {}
+            self.calib_points = []
+            self.calib_visuals = []
+            self.calibrate_action.setChecked(False)
             
             # Safely flush drawn graphics without killing the underlying image object
             # Keep both the PDF image and the reusable selection_box
@@ -622,9 +728,11 @@ class MainWindow(QMainWindow):
             
             # Enable actions
             self.select_mode_action.setEnabled(True)
+            self.calibrate_action.setEnabled(True)
             self.undo_action.setEnabled(True)
             self.export_action.setEnabled(True)
             self.export_pdf_action.setEnabled(True)
+            self._update_scale_info()
 
     def _display_current_page(self):
         if self.pdf_handler:
@@ -639,6 +747,7 @@ class MainWindow(QMainWindow):
                 self._finish_flowline()
             self.current_page -= 1
             self._display_current_page()
+            self._update_scale_info()
             self._refresh_all_arrows()
 
     def _next_page(self):
@@ -647,6 +756,7 @@ class MainWindow(QMainWindow):
                 self._finish_flowline()
             self.current_page += 1
             self._display_current_page()
+            self._update_scale_info()
             self._refresh_all_arrows()
 
     def _undo(self):
@@ -661,6 +771,10 @@ class MainWindow(QMainWindow):
             self.status.showMessage("Undo last arrow.")
 
     def _cancel_current(self):
+        if self.calibrate_action.isChecked():
+            self.calibrate_action.setChecked(False)
+            self.status.showMessage("Calibration cancelled.")
+            return
         if self.points or self.temp_anchor:
             self.points = []
             self.temp_anchor = None
