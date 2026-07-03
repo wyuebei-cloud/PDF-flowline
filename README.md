@@ -12,8 +12,7 @@ Open a scanned PDF grading plan, click the physical measurement points on the ma
 
 - OCR the elevation values using **PP-OCRv6 tiny_rec (local ONNX Runtime)** — no API key, no internet required
 - Compute elevation differences (Δ) between consecutive points
-- Draw red flow direction arrows with delta labels
-- **Calibrate the drawing scale** (click two points of known distance) to also display **run length (L)** and **slope (S%)** on every arrow
+- Draw red flow direction arrows with delta labels; equal elevations render as a plain **FLAT** line with no arrowhead
 - Automatically identify **HP (High Point)** and **LP (Low Point)** extrema
 - Export the annotated plan as WYSIWYG image (PNG/JPG) **or** native PDF vector annotations
 

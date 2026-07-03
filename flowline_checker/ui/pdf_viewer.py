@@ -31,7 +31,7 @@ class PDFViewer(QGraphicsView):
         self.zoom_factor = 1.15
         
         self.drawing_selection = False
-        self.interaction_mode = 'NONE' # 'NONE', 'ANCHOR', 'BOX', 'CALIBRATE'
+        self.interaction_mode = 'NONE' # 'NONE', 'ANCHOR', 'BOX'
         self.start_scene_pt = QPointF()
         
     def set_pixmap(self, pixmap):
@@ -55,7 +55,7 @@ class PDFViewer(QGraphicsView):
             return
             
         if event.button() == Qt.MouseButton.LeftButton:
-            if self.interaction_mode in ('ANCHOR', 'CALIBRATE'):
+            if self.interaction_mode == 'ANCHOR':
                 self.point_selected.emit(self.mapToScene(event.pos()))
             elif self.interaction_mode == 'BOX':
                 self.drawing_selection = True
