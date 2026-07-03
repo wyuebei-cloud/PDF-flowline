@@ -2,6 +2,12 @@ import fitz
 from PyQt6.QtGui import QImage, QPixmap
 import math
 
+def label_offset_distance(text_size, label_text):
+    """Tangential clearance between an arrow shaft and its label; grows with the label's line count.
+    Shared by the on-screen renderer and the PDF exporter so both place labels identically."""
+    num_lines = label_text.count("\n") + 1
+    return text_size * 0.8 * (1 + 0.5 * (num_lines - 1))
+
 class PDFHandler:
     def __init__(self, pdf_path):
         self.doc = fitz.open(pdf_path)
@@ -34,7 +40,7 @@ class PDFHandler:
     def get_page_count(self):
         return self.num_pages
 
-    def add_arrow_annotation(self, page_number, p1, p2, visual_arrow_size, text_size, drawn_labels=None, label_text=None):
+    def add_arrow_annotation(self, page_number, p1, p2, visual_arrow_size, text_size, label_text, drawn_labels=None):
         page = self.doc.load_page(page_number)
         
         # 1. Absolute geometric mapping algorithm (handles Rotation + CropBox Offsets + DPI Zoom)
@@ -72,12 +78,8 @@ class PDFHandler:
         annot.update()
 
         # 4. Add Delta/Length/Slope Text Annotation (freetext)
-        if label_text is None:
-            delta = abs(p1.value - p2.value)
-            label_text = f"{delta:.2f}"
         label_lines = label_text.split("\n")
         num_lines = len(label_lines)
-        max_line_len = max(len(line) for line in label_lines)
 
         # Calculate position in screen space first (highly robust to rotation/reflection)
         mid_x = (p1.x + p2.x) / 2
@@ -85,7 +87,7 @@ class PDFHandler:
         dx = p2.x - p1.x
         dy = p2.y - p1.y
         angle = math.atan2(dy, dx)
-        offset_distance = text_size * 0.8 * (1 + 0.5 * (num_lines - 1))
+        offset_distance = label_offset_distance(text_size, label_text)
         offset_x = -math.sin(angle) * offset_distance
         offset_y = math.cos(angle) * offset_distance
         
@@ -95,9 +97,12 @@ class PDFHandler:
         # Transform the target label center back to unrotated PDF page geometry
         scaled_text_center = fitz.Point(text_screen_x + screen_rect.x0, text_screen_y + screen_rect.y0) * inv_trans
         
-        # Scale font size and boxes back to PDF point space; box grows with the longest line and line count
+        # Scale font size and boxes back to PDF point space; width is measured from the
+        # actual text ("hebo" = base-14 Helvetica-Bold, same face the annotation renders with)
         pdf_font_size = max(6.0, text_size / zoom)
-        box_w = pdf_font_size * max(3.5, 0.62 * max_line_len)
+        max_line_width = max(fitz.get_text_length(line, fontname="hebo", fontsize=pdf_font_size)
+                             for line in label_lines)
+        box_w = max(pdf_font_size * 3.5, max_line_width + pdf_font_size)
         box_h = pdf_font_size * 1.5 * num_lines
         
         # Swap box width/height if the page is rotated 90 or 270 degrees

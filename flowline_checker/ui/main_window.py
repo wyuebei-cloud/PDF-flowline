@@ -9,7 +9,7 @@ import math
 import os
 from ui.pdf_viewer import PDFViewer
 from ui.value_dialog import ValueDialog
-from core.pdf_handler import PDFHandler
+from core.pdf_handler import PDFHandler, label_offset_distance
 from core.ocr_engine import OCREngine
 from models.data_types import ElevationPoint, FlowArrow
 
@@ -257,16 +257,17 @@ class MainWindow(QMainWindow):
             self._finish_flowline()
 
     def _finish_flowline(self):
-        # Check if there are any pending OCR workers or unrecognized values
+        # Finalize the in-progress flowline. Returns False when blocked
+        # (pending OCR / invalid value) so callers can abort their context switch.
         for p in self.points:
             if hasattr(p, '_text_item') and p._text_item:
                 text = p._text_item.toPlainText()
                 if text == "...":
                     QMessageBox.warning(self, "OCR In Progress", "Please wait for the background OCR to complete before clicking Done.")
-                    return
+                    return False
                 if text == "?" or p.value is None or (p.value == 0.0 and not p.confirmed):
                     QMessageBox.warning(self, "Invalid Value", "One or more points have unrecognized values (shown as '?'). Please click on the blue '?' to input the value manually.")
-                    return
+                    return False
 
         # 1. Clean up temporary visual markers (yellow dots, dash lines, blue text items)
         for item in self.temp_visuals:
@@ -303,6 +304,7 @@ class MainWindow(QMainWindow):
         self.select_mode_action.setChecked(False)
         self.finish_flowline_action.setEnabled(False)
         self.status.showMessage("Flowline completed. Ready.")
+        return True
 
     def _toggle_calibrate_mode(self, enabled):
         if enabled:
@@ -570,8 +572,7 @@ class MainWindow(QMainWindow):
         mid_y = (start.y + end.y) / 2
 
         # Dynamic tangential offset so it doesn't overlap the line (taller text needs more clearance)
-        num_lines = delta_text.count("\n") + 1
-        offset_distance = text_size * 0.8 * (1 + 0.5 * (num_lines - 1))
+        offset_distance = label_offset_distance(text_size, delta_text)
         offset_x = -math.sin(angle) * offset_distance
         offset_y = math.cos(angle) * offset_distance
         
@@ -617,8 +618,9 @@ class MainWindow(QMainWindow):
             self.settings.setValue("LastExportedDir", os.path.dirname(file_path))
 
             self._cancel_calibration()
-            if self.points:
-                self._finish_flowline()
+            if (self.points or self.temp_anchor) and not self._finish_flowline():
+                self.status.showMessage("Export cancelled: resolve the in-progress flowline first.")
+                return
 
             scene = self.viewer.scene
             rect = scene.sceneRect()
@@ -655,8 +657,9 @@ class MainWindow(QMainWindow):
             self.settings.setValue("LastExportedDir", os.path.dirname(file_path))
             
             self._cancel_calibration()
-            if self.points or self.temp_anchor:
-                self._finish_flowline()
+            if (self.points or self.temp_anchor) and not self._finish_flowline():
+                self.status.showMessage("Export cancelled: resolve the in-progress flowline first.")
+                return
 
             try:
                 # Open a separate copy to keep the active loaded document clean in memory
@@ -671,8 +674,8 @@ class MainWindow(QMainWindow):
                         text_size = self.text_size_slider.value()
                         
                         temp_handler.add_arrow_annotation(
-                            page_idx, start, end, arrow_size, text_size, drawn_labels,
-                            label_text=self._format_arrow_text(p1, p2, page_idx)
+                            page_idx, start, end, arrow_size, text_size,
+                            self._format_arrow_text(p1, p2, page_idx), drawn_labels
                         )
                 
                 temp_handler.save_copy(file_path)
@@ -745,7 +748,6 @@ class MainWindow(QMainWindow):
             self.undo_action.setEnabled(True)
             self.export_action.setEnabled(True)
             self.export_pdf_action.setEnabled(True)
-            self._update_scale_info()
 
     def _display_current_page(self):
         if self.pdf_handler:
@@ -753,25 +755,24 @@ class MainWindow(QMainWindow):
             if pixmap:
                 self.viewer.set_pixmap(pixmap)
                 self._update_page_nav_state()
+                self._update_scale_info()
 
     def _prev_page(self):
         if self.pdf_handler and self.current_page > 0:
             self._cancel_calibration()
-            if self.points or self.temp_anchor:
-                self._finish_flowline()
+            if (self.points or self.temp_anchor) and not self._finish_flowline():
+                return  # stay on this page; segments must not be filed under another page
             self.current_page -= 1
             self._display_current_page()
-            self._update_scale_info()
             self._refresh_all_arrows()
 
     def _next_page(self):
         if self.pdf_handler and self.current_page < self.pdf_handler.get_page_count() - 1:
             self._cancel_calibration()
-            if self.points or self.temp_anchor:
-                self._finish_flowline()
+            if (self.points or self.temp_anchor) and not self._finish_flowline():
+                return  # stay on this page; segments must not be filed under another page
             self.current_page += 1
             self._display_current_page()
-            self._update_scale_info()
             self._refresh_all_arrows()
 
     def _undo(self):

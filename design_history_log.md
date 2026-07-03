@@ -231,6 +231,16 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - **Fix**: One chokepoint, `_cancel_calibration()` (uncheck the action; its `toggled(False)` handler owns the teardown), invoked at every context switch: `_prev_page`/`_next_page`, `_undo`, `_export_image`, `_export_pdf`, and `_cancel_current`. For (3), `_toggle_calibrate_mode` now verifies the flowline actually finalized (`self.points or self.temp_anchor` empty after unchecking Draw Flowline); if the finalize was blocked it re-enters drawing mode and refuses to activate calibration.
 - **Lesson**: A checkable tool mode is a resource with a lifecycle — every action that changes page, document, or output context must release it explicitly, not assume the user toggled it off first.
 
+### Bug: Blocked `_finish_flowline` Silently Ignored by Callers (Pre-Existing)
+- **Problem**: `_finish_flowline` early-returns with a warning when a point's OCR is still pending or its value is invalid — but it returned nothing, so callers couldn't tell. Two long-standing consequences: (1) page navigation incremented `current_page` anyway, so the still-pending points were later filed under the *wrong page index* (arrows drawn at wrong positions, exported onto the wrong PDF page); (2) `Export to PDF` proceeded anyway and popped a "Success" dialog while silently omitting the flowline the user had just drawn.
+- **Fix**: `_finish_flowline` now returns `True`/`False`. Page navigation and both export paths check the result and abort the context switch when finalization is blocked (`if (self.points or self.temp_anchor) and not self._finish_flowline(): return`), keeping the user on the page with a status-bar hint.
+
+### Cleanup: One Owner for Label Geometry and Content (Code-Review Items)
+- `label_text` is now a **required** parameter of `add_arrow_annotation`; the dead `None` fallback that re-implemented delta formatting inside `PDFHandler` is gone — `MainWindow._format_arrow_text` is the only place that knows what an arrow label says.
+- The tangential label-offset formula, previously copy-pasted in both renderers, moved to a shared module-level helper `label_offset_distance()` in `core/pdf_handler.py`, imported by the on-screen renderer — screen and PDF placement can no longer drift.
+- The freetext box width is now **measured** with `fitz.get_text_length(line, fontname="hebo", ...)` instead of the `0.62 × character-count` heuristic, so label format changes can never silently clip in exports.
+- `_update_scale_info()` moved inside `_display_current_page()` (the single chokepoint for page renders) instead of being manually appended at each navigation site — a future goto-page path cannot show a stale scale.
+
 ---
 
 ## ✨ Deliverables
