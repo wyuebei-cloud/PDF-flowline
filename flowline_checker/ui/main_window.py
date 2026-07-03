@@ -389,6 +389,13 @@ class MainWindow(QMainWindow):
     def _format_arrow_text(self, p1, p2, page_idx):
         delta = abs(p1.value - p2.value)
         scale = self.page_scales.get(page_idx)
+        if delta == 0:
+            # Flat segment: no meaningful direction or slope
+            if scale:
+                length = math.hypot(p2.x - p1.x, p2.y - p1.y) * scale
+                if length > 1e-6:
+                    return f"FLAT\nL={length:.2f}'"
+            return "FLAT"
         if scale:
             length = math.hypot(p2.x - p1.x, p2.y - p1.y) * scale
             if length > 1e-6:
@@ -528,33 +535,36 @@ class MainWindow(QMainWindow):
 
     def _draw_final_arrow(self, p1, p2):
         is_reverse = p2.value > p1.value
+        is_flat = p1.value == p2.value
         start, end = (p1, p2) if not is_reverse else (p2, p1)
-        
+
         pen = QPen(QColor("red"), 3)
         brush = QColor("red")
-        
+
         arrow_group = ArrowGroup(p1, p2)
-        
+
         # 1. Main body line
         line_item = self.viewer.scene.addLine(start.x, start.y, end.x, end.y, pen)
         arrow_group.addToGroup(line_item)
-        
-        # 2. Calculate and draw Arrowhead
+
         dx = end.x - start.x
         dy = end.y - start.y
         angle = math.atan2(dy, dx)
-        
-        arrow_size = self.arrow_size_slider.value()
-        
-        # Points for the triangle (pointing at end)
-        pa = QPointF(end.x - arrow_size * math.cos(angle - math.pi / 6),
-                     end.y - arrow_size * math.sin(angle - math.pi / 6))
-        pb = QPointF(end.x - arrow_size * math.cos(angle + math.pi / 6),
-                     end.y - arrow_size * math.sin(angle + math.pi / 6))
-        
-        polygon = QPolygonF([QPointF(end.x, end.y), pa, pb])
-        poly_item = self.viewer.scene.addPolygon(polygon, pen, brush)
-        arrow_group.addToGroup(poly_item)
+
+        # 2. Calculate and draw Arrowhead (skipped for flat segments — equal
+        #    elevations have no flow direction, an arrowhead would be misleading)
+        if not is_flat:
+            arrow_size = self.arrow_size_slider.value()
+
+            # Points for the triangle (pointing at end)
+            pa = QPointF(end.x - arrow_size * math.cos(angle - math.pi / 6),
+                         end.y - arrow_size * math.sin(angle - math.pi / 6))
+            pb = QPointF(end.x - arrow_size * math.cos(angle + math.pi / 6),
+                         end.y - arrow_size * math.sin(angle + math.pi / 6))
+
+            polygon = QPolygonF([QPointF(end.x, end.y), pa, pb])
+            poly_item = self.viewer.scene.addPolygon(polygon, pen, brush)
+            arrow_group.addToGroup(poly_item)
         
         # 3. Calculate Delta (and Length/Slope when the page scale is calibrated) and draw Text
         delta_text = self._format_arrow_text(p1, p2, self.current_page)

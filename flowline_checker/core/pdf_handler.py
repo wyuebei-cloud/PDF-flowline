@@ -61,10 +61,11 @@ class PDFHandler:
         
         # 2. Add PyMuPDF native line annotation
         annot = page.add_line_annot(scaled_start, scaled_end)
-        
+
         # 3. Setting properties
-        # Arrows with heads
-        annot.set_line_ends(fitz.PDF_ANNOT_LE_NONE, fitz.PDF_ANNOT_LE_CLOSED_ARROW)
+        # Arrow head only when there is an actual flow direction (flat segments stay a plain line)
+        if p1.value != p2.value:
+            annot.set_line_ends(fitz.PDF_ANNOT_LE_NONE, fitz.PDF_ANNOT_LE_CLOSED_ARROW)
         
         # Color processing: FitZ expects RGB floats in [0, 1]
         red_color = [1.0, 0.0, 0.0]

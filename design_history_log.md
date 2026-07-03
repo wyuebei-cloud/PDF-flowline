@@ -241,6 +241,10 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - The freetext box width is now **measured** with `fitz.get_text_length(line, fontname="hebo", ...)` instead of the `0.62 × character-count` heuristic, so label format changes can never silently clip in exports.
 - `_update_scale_info()` moved inside `_display_current_page()` (the single chokepoint for page renders) instead of being manually appended at each navigation site — a future goto-page path cannot show a stale scale.
 
+### Bug: Equal Elevations Drew an Arbitrary-Direction Arrow
+- **Problem**: `is_reverse = p2.value > p1.value` is False when the two elevations are equal, so a flat segment silently drew an arrow from p1 to p2 — the direction was just click order, presented with the same authority as a real flow direction.
+- **Fix**: Flat segments (delta == 0) are drawn as a plain connecting line with no arrowhead, labeled `FLAT` (plus `L=xx.xx'` when calibrated, no slope). The PDF export mirrors this: `set_line_ends` with the closed-arrow head is only applied when the elevations differ. HP/LP detection already used strict comparisons, so equal neighbors were never mislabeled.
+
 ---
 
 ## ✨ Deliverables
