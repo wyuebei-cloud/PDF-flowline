@@ -99,6 +99,30 @@
 *   **原因**：在页面存在旋转（如旋转 270°）时，FreeText 标注未指定 `rotate` 旋转方向，且其包围盒大小未按照旋转进行对调，导致文字阅读方向不匹配，并且由于文本框尺寸不符而发生折行或截断。
 *   **解决**：在 `pdf_handler.py` 中将 `rotate=page.rotation` 传入 `add_freetext_annot(...)`。并在页面旋转 90°/270° 时自动对调文字包围盒的宽高，完美实现了水平向上的矢量文字导出效果。
 
+### 功能探索: 比例尺校准与坡度/长度显示（实测后已移除）
+*   **功能描述**：曾新增 "Calibrate Scale" 工具模式——点击图上两个已知实际距离的点（如图形比例尺两端），输入真实距离，按页存储 ft/像素比例；校准后每个箭头标签显示两行：高差 + `L=xx.xx' S=x.xx%`（坡度 = 高差 ÷ 水平长度 × 100%）。屏幕与 PDF 导出共用同一格式化函数，保证所见即所得。
+*   **移除原因**：实测发现扫描 PDF 上无法可靠获取流线的真实长度——流线很少是两点间的直线，点选位置近似的是标注文字的锚点而非实际排水路径，由此推算的坡度"看似精确、实则不可信"。**在扫描图上，高差 (Δ) 仍是唯一可靠的信号。** 该功能整体撤下。
+*   **保留的副产品**（与校准无关，见下方各条）：`_finish_flowline` 布尔返回值及翻页/导出阻断、`label_text` 必填参数、共享偏移函数、实测文字框宽度、FLAT 平坡段渲染。
+*   **教训**：用不可靠的测量值算出一个"看起来很精确"的数字，比不显示这个数字更糟——应先在实际场景中验证测量本身可信，再在其上构建显示功能。
+
+### 🐞 Bug: 校准状态在上下文切换时泄漏（代码评审修复，随功能一并移除）
+*   **问题**：代码评审确认了 4 个状态机漏洞：翻页不取消进行中的校准（两次校准点击可跨页、把错误比例存到新页）；校准中按 `Ctrl+Z` 误删已完成的箭头；OCR 未完成时切换校准模式导致半成品流线孤儿化；导出图片时把绿色校准标记点烤进成品。
+*   **解决**：建立统一收口 `_cancel_calibration()`，在翻页、Undo、两种导出、Esc 处统一释放校准模式；进入校准前先校验流线确实收尾成功。
+*   **教训**：可勾选的工具模式是一种有生命周期的资源——所有切换页面、文档或输出上下文的操作都必须显式释放它，而不能假设用户已手动关闭。
+
+### 🐞 Bug: `_finish_flowline` 被挡下时调用方毫不知情（master 遗留问题）
+*   **问题**：OCR 未完成或数值无效时 `_finish_flowline` 弹出警告后提前返回，但没有返回值，调用方无从判断成败：(1) 翻页照常执行 `current_page ± 1`，待定的点之后被归档到**错误的页码**下——箭头画错位置、标注导出到错误的 PDF 页；(2) 导出 PDF 照常进行并弹出 "Success"，刚画的流线被静默丢弃。
+*   **解决**：`_finish_flowline` 现在返回 True/False；翻页与两种导出在收尾被挡时**中止**上下文切换，停留在原页并在状态栏提示。
+
+### 清理: 标签几何与内容的唯一所有权（代码评审项）
+*   `add_arrow_annotation` 的 `label_text` 改为**必填参数**，删除了内部重复实现高差格式化的死代码回退——标签内容只有 `MainWindow._format_arrow_text` 一个所有者。
+*   标签的切向偏移公式从两个渲染器中的复制粘贴提取为共享函数 `label_offset_distance()`（`core/pdf_handler.py`），屏幕排版与 PDF 导出排版不再可能漂移。
+*   导出文字框宽度改用 `fitz.get_text_length()` 按 Helvetica-Bold **实测**字符串宽度（支持多行），替代 `0.62 × 字符数` 的猜测值——今后修改标签格式不会静默裁字。
+
+### 🐞 Bug: 相邻高程相等时画出方向随机的箭头（FLAT 平坡段）
+*   **问题**：`is_reverse = p2.value > p1.value` 在两值相等时为 False，平坡段会按**点击顺序**画 p1→p2 箭头——方向毫无依据，却与真实流向以同样的"权威性"呈现。
+*   **解决**：高差为 0 的段只画连线、不画箭头帽，标签显示 `FLAT`；PDF 导出同步处理（仅当高程不同时才设置箭头线端样式）。HP/LP 判定本就使用严格大小比较，相等的邻点不会被误标极值。
+
 ---
 
 ## ✨ 交付物清单 (Deliverables)
@@ -241,14 +265,14 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - The freetext box width is now **measured** with `fitz.get_text_length(line, fontname="hebo", ...)` instead of the `0.62 × character-count` heuristic, so label format changes can never silently clip in exports.
 - `_update_scale_info()` moved inside `_display_current_page()` (the single chokepoint for page renders) instead of being manually appended at each navigation site — a future goto-page path cannot show a stale scale.
 
+### Bug: Equal Elevations Drew an Arbitrary-Direction Arrow
+- **Problem**: `is_reverse = p2.value > p1.value` is False when the two elevations are equal, so a flat segment silently drew an arrow from p1 to p2 — the direction was just click order, presented with the same authority as a real flow direction.
+- **Fix**: Flat segments (delta == 0) are drawn as a plain connecting line with no arrowhead, labeled `FLAT`. The PDF export mirrors this: `set_line_ends` with the closed-arrow head is only applied when the elevations differ. HP/LP detection already used strict comparisons, so equal neighbors were never mislabeled.
+
 ### Design Decision: Scale Calibration / Slope Display Removed After Field Testing
 - **Outcome**: The two-point scale calibration and L/S% labels (added earlier on this branch) were removed after real-plan testing. There is no reliable way to capture the true flowline run length on a scanned PDF — flowlines are rarely straight point-to-point, and the click positions approximate text anchors, not the actual drainage path — so a slope derived from that length is precise-looking but untrustworthy. **Elevation difference (Δ) remains the reliable signal on scanned plans.**
 - **Kept from that work** (independent of calibration): `_finish_flowline` returning True/False with page-nav/export aborting when blocked; `label_text` as a required `add_arrow_annotation` parameter; the shared `label_offset_distance()` helper; measured freetext box width via `fitz.get_text_length`; multi-line label support in the PDF exporter; and FLAT rendering for equal elevations.
 - **Lesson**: A feature that computes a plausible-looking number from an unreliable measurement is worse than not showing the number — validate the measurement's trustworthiness in the field before building the display on top of it.
-
-### Bug: Equal Elevations Drew an Arbitrary-Direction Arrow
-- **Problem**: `is_reverse = p2.value > p1.value` is False when the two elevations are equal, so a flat segment silently drew an arrow from p1 to p2 — the direction was just click order, presented with the same authority as a real flow direction.
-- **Fix**: Flat segments (delta == 0) are drawn as a plain connecting line with no arrowhead, labeled `FLAT` (plus `L=xx.xx'` when calibrated, no slope). The PDF export mirrors this: `set_line_ends` with the closed-arrow head is only applied when the elevations differ. HP/LP detection already used strict comparisons, so equal neighbors were never mislabeled.
 
 ---
 
