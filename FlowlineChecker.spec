@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import copy_metadata
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('flowline_checker', 'flowline_checker')]
+datas = [('flowline_checker', 'flowline_checker'), ('assets', 'assets')]
 datas += collect_data_files('paddleocr')
 datas += collect_data_files('paddlex')
 datas += collect_data_files('PyQt6')
@@ -51,6 +51,7 @@ exe = EXE(
     a.datas,
     [],
     name='FlowlineChecker',
+    icon='assets/app_icon.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
