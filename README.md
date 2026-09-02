@@ -118,4 +118,4 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fo
 
 ---
 
-*Made by a PE at KPFF. First-gen Chinese immigrant in the PNW. Licensed PE (WA/OR) since 2013.*
+*Made by a PE at KPFF. First-gen Chinese immigrant in the PNW. Licensed PE (WA/OR).*
