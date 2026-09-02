@@ -68,6 +68,21 @@
     *   `ui/main_window.py`：去掉 API Key 加载逻辑和 "Set Gemini API Key" 按钮，替换为 "OCR Engine: Local PP-OCRv6" 信息提示
     *   `launch.bat`：自动安装 `paddleocr` + `onnxruntime`，首次启动时从 HuggingFace 下载模型并缓存
 
+### 9. PDF 浏览器反色护眼模式 (PDF Viewer Invert Mode) ✨ *New*
+*   **功能描述**：针对工程师长时间查看白底黑字图纸容易眼疲劳的问题，新增了独立的黑底白线反色浏览模式。
+*   **毫秒级平滑渲染**：在 `PDFViewer` 中调用 Qt 底层硬件加速的 `QImage.invertPixels(QImage.InvertMode.InvertRgb)`，平滑高效，视口周围区域同步变为舒适深灰色（`#1e1e1e`）。
+*   **隔离保护机制**：
+    *   **OCR 识别零干扰**：底层始终保留未经反色的原始高精度渲染图（`self._raw_pixmap`）。无论在何种显示模式下框选，送入 PP-OCRv6 的始终是正色白底切图，识别精度不受任何影响。
+    *   **导出 PDF/图片零干扰**：导出 PDF 依然通过 PyMuPDF 直接对矢量层进行标准标注，导出的成品文件依然是标准的白底黑字工程图；导出图片在渲染前临时切回原色，确保交付文件符合规范。
+*   **快捷操作与偏好记忆**：工具栏配置纯英文 `Invert Mode` 按钮，绑定快捷键 `Ctrl+I`，并通过 `QSettings` 持久化保存用户的反色模式偏好。
+
+### 10. 绘制中单点撤销与连通性保持 (Point-by-Point Undo During Drawing) ✨ *New*
+*   **功能描述**：大幅优化了流线绘制过程中的撤销交互体验。在尚未点击 "Done" 完成流线时，按 `Ctrl+Z` 不再粗暴清空整条在建流线，而是精准回退上一个点。
+*   **状态与图元精准拆解**：
+    *   将每个点的物理黄色锚点标记（`_marker`）、前向连接虚线（`_line_to_prev`）、标高识别文本框（`_text_item`）以及后台 `OCRWorker` 线程精确绑定到 `ElevationPoint` 实例上。
+    *   当处于等待框选数字的锚点状态（`temp_anchor` 存在）时，按 `Ctrl+Z` 仅清除当前黄色锚点，允许用户重新点选物理位置。
+    *   当已添加若干完整标高点时，按 `Ctrl+Z` 仅弹出并清除末尾点及其视觉元素与 OCR 线程，**前面已绘制的节点、连接虚线和识别结果完全保留**。
+*   **无缝续画与全局放弃**：撤销后界面与光标无缝维持在 `ANCHOR` 准备状态，用户可直接点击新位置继续添加后续点。若需一次性放弃整条在建流线，依然可通过键盘 `Esc` 键一键全局重置。
 
 ### 🐞 核心解决的问题追溯
 
@@ -199,6 +214,22 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - **Non-blocking Drawing Workflow**: Spawns a background thread (`OCRWorker`) for Gemini API requests. The GUI immediately returns to `ANCHOR` mode, letting users draw subsequent points continuously without blocking.
 - **Temporary Clickable Blue Labels**: Renders a temporary blue number (initially `...`, updates to the float value, or `?` on OCR failure) to the left of each selection box.
 - **Interactive Editing**: Users can single-click any blue number at any time to open `ValueDialog` and manually correct it prior to clicking "Done".
+
+### 10. PDF Viewer Invert Mode (Dark Theme Eye Protection) ✨ *New*
+- **What it does**: Provides a toggleable dark viewing mode (black background with white linework) to reduce eye strain when reviewing high-contrast civil engineering plans for extended periods.
+- **Hardware-Accelerated Inversion**: Uses Qt's native `QImage.invertPixels(QImage.InvertMode.InvertRgb)` in `PDFViewer` for sub-millisecond page inversion. The outer viewport canvas automatically switches to dark gray (`#1e1e1e`) to eliminate white glare around the page.
+- **Strict Isolation Guarantees**:
+  - **OCR Accuracy Unaffected**: The original un-inverted raster is preserved in `self._raw_pixmap`. Box-selection cropping always extracts clean dark-text-on-white images for the local PP-OCRv6 engine, guaranteeing zero degradation in recognition accuracy.
+  - **Export Integrity Unaffected**: Native PDF export (`Ctrl+E`) annotates the un-inverted vector document directly via PyMuPDF. Image export (`Ctrl+S`) renders from the raw pixmap, ensuring all exported deliverables strictly adhere to standard white-background engineering drafting specs.
+- **UX & Persistence**: Features a dedicated `Invert Mode` toolbar button (shortcut: `Ctrl+I`). Viewport preference is persisted via `QSettings` across sessions.
+
+### 11. Point-by-Point Undo During In-Progress Drawing ✨ *New*
+- **What it does**: Overhauls the in-progress drawing undo experience. Pressing `Ctrl+Z` before clicking "Done" no longer discards the entire polyline sequence — it now pops only the last placed point.
+- **Fine-Grained Entity Binding**:
+  - Each `ElevationPoint` directly tracks its yellow anchor marker (`_marker`), dashed connecting line to the previous point (`_line_to_prev`), interactive blue/cyan text item (`_text_item`), and active background `OCRWorker` thread (`_worker`).
+  - If pressed right after clicking an anchor (yellow marker present, awaiting bounding box), `Ctrl+Z` simply cancels that anchor so the user can re-click the physical point.
+  - If multiple points have been completed, `Ctrl+Z` pops the trailing point and cleanly tears down its text, connecting line, anchor dot, and any running OCR worker, **preserving all preceding points, dashed lines, and values**.
+- **Seamless Continuity**: Leaves the cursor in `ANCHOR` crosshair mode, allowing users to immediately click a new physical location and continue extending the flowline. `Esc` remains available to abandon the entire in-progress sequence in one keystroke.
 
 ---
 
