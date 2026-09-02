@@ -151,7 +151,11 @@ class OCREngine:
         # 去掉后缀: "31.95 FS" -> "31.95"
         clean = re.sub(r'[.\s]*(FS|EL|EL\.|ELEV|TOP|BOT)\s*$', '', clean, flags=re.IGNORECASE).strip()
 
-        try:
-            return float(clean)
-        except ValueError:
-            return None
+        # 使用正则提取有效浮点数/整数（支持正负号、括号、中括号等包裹的情况）
+        match = re.search(r'[-+]?\d+(?:\.\d+)?', clean)
+        if match:
+            try:
+                return float(match.group(0))
+            except ValueError:
+                return None
+        return None

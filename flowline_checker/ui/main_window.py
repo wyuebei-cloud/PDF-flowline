@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Flowline Direction Checker")
-        self.resize(1200, 800)
+        self.resize(1280, 820)
         
         self.pdf_handler = None
         self.points = []  # List of current sequence of ElevationPoints
@@ -74,12 +74,14 @@ class MainWindow(QMainWindow):
         self.ocr_workers = set()
         
         self.settings = QSettings("FlowlineCorp", "FlowlineChecker")
+        self.invert_mode = self.settings.value("InvertMode", False, type=bool)
         
         # Use PP-OCRv6 tiny_rec (local ONNX) — no API key needed
         self.ocr_engine = OCREngine()
         
         self.current_page = 0
         self.temp_anchor = None
+        self.temp_anchor_marker = None
         self.temp_visuals = [] # Track yellow dots and dashed lines for cleanup
         
         # Build custom red crosshair for physical point selection
@@ -91,6 +93,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
         
         self.viewer = PDFViewer()
+        self.viewer.set_invert_mode(self.invert_mode)
         self.viewer.selection_completed.connect(self._handle_selection)
         self.viewer.point_selected.connect(self._handle_anchor)
         self.layout.addWidget(self.viewer)
@@ -144,6 +147,16 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         toolbar.addWidget(self.page_info)
         toolbar.addSeparator()
+
+        self.invert_action = QAction("Invert Mode", self)
+        self.invert_action.setCheckable(True)
+        self.invert_action.setChecked(self.invert_mode)
+        self.invert_action.setShortcut(QKeySequence("Ctrl+I"))
+        self.invert_action.setToolTip("Toggle dark invert mode for PDF viewing (Ctrl+I)")
+        self.invert_action.toggled.connect(self._toggle_invert_mode)
+        toolbar.addAction(self.invert_action)
+
+        toolbar.addSeparator()
         
         self.select_mode_action = QAction("Draw Flowline", self)
         self.select_mode_action.setCheckable(True)
@@ -164,7 +177,7 @@ class MainWindow(QMainWindow):
         self.arrow_size_slider = QSlider(Qt.Orientation.Horizontal)
         self.arrow_size_slider.setRange(5, 50)
         self.arrow_size_slider.setValue(15)
-        self.arrow_size_slider.setFixedWidth(100)
+        self.arrow_size_slider.setFixedWidth(80)
         self.arrow_size_slider.setToolTip("Adjust the generated arrow size")
         self.arrow_size_slider.valueChanged.connect(self._refresh_all_arrows)
         toolbar.addWidget(self.arrow_size_slider)
@@ -175,7 +188,7 @@ class MainWindow(QMainWindow):
         self.text_size_slider = QSlider(Qt.Orientation.Horizontal)
         self.text_size_slider.setRange(10, 80)
         self.text_size_slider.setValue(24)
-        self.text_size_slider.setFixedWidth(100)
+        self.text_size_slider.setFixedWidth(80)
         self.text_size_slider.setToolTip("Adjust the text size for elevation differences")
         self.text_size_slider.valueChanged.connect(self._refresh_all_arrows)
         toolbar.addWidget(self.text_size_slider)
@@ -225,6 +238,12 @@ class MainWindow(QMainWindow):
             "No API key or internet connection required.\n\n"
             f"Model: {self.ocr_engine._model.model_name if self.ocr_engine._model else 'loading...'}"
         )
+
+    def _toggle_invert_mode(self, enabled):
+        self.invert_mode = enabled
+        self.settings.setValue("InvertMode", enabled)
+        self.viewer.set_invert_mode(enabled)
+        self._refresh_all_arrows()
 
     def _toggle_select_mode(self, enabled):
         if enabled:
@@ -282,6 +301,7 @@ class MainWindow(QMainWindow):
         self.viewer.viewport().unsetCursor()
         self.points = []
         self.temp_anchor = None
+        self.temp_anchor_marker = None
         self.select_mode_action.setChecked(False)
         self.finish_flowline_action.setEnabled(False)
         self.status.showMessage("Flowline completed. Ready.")
@@ -319,6 +339,7 @@ class MainWindow(QMainWindow):
         marker.setBrush(QColor("yellow"))
         self.viewer.scene.addItem(marker)
         self.temp_visuals.append(marker)
+        self.temp_anchor_marker = marker
         
         self.viewer.interaction_mode = 'BOX'
         self.viewer.viewport().setCursor(Qt.CursorShape.CrossCursor) # Black crosshair for box
@@ -335,9 +356,11 @@ class MainWindow(QMainWindow):
         pixmap_item = self.viewer.pixmap_item
         crop_rect = QRectF(pixmap_item.mapFromScene(scene_start), pixmap_item.mapFromScene(scene_end)).toRect()
         
-        # 2. Extract image from pixmap
-        full_pixmap = pixmap_item.pixmap()
-        cropped_pixmap = full_pixmap.copy(crop_rect)
+        # 2. Extract image from pixmap (always use raw un-inverted pixmap so OCR accuracy is unaffected)
+        source_pixmap = self.viewer.get_raw_pixmap()
+        if source_pixmap is None:
+            source_pixmap = pixmap_item.pixmap()
+        cropped_pixmap = source_pixmap.copy(crop_rect)
         qimg = cropped_pixmap.toImage()
         
         # Convert QImage to numpy array for CV2
@@ -350,6 +373,8 @@ class MainWindow(QMainWindow):
         x, y = self.temp_anchor.x(), self.temp_anchor.y()
         point = ElevationPoint(value=0.0, x=x, y=y, confirmed=False)
         point._selection_rect = rect
+        point._marker = getattr(self, 'temp_anchor_marker', None)
+        self.temp_anchor_marker = None
         self.points.append(point)
         
         # Connect backward to previous point intuitively as a dashed line for now
@@ -358,14 +383,20 @@ class MainWindow(QMainWindow):
             pen = QPen(QColor("red"), 2, Qt.PenStyle.DashLine)
             line = self.viewer.scene.addLine(p1.x, p1.y, p2.x, p2.y, pen)
             self.temp_visuals.append(line)
+            point._line_to_prev = line
+        else:
+            point._line_to_prev = None
             
         # Place temporary clickable blue text item showing "..."
         text_item = ClickableTextItem("...", point, self._handle_blue_text_click)
+        if self.invert_mode:
+            text_item.setDefaultTextColor(QColor("#00bfff"))
         self.viewer.scene.addItem(text_item)
         rect_text = text_item.boundingRect()
         text_item.setPos(rect.x() - rect_text.width() - 5, rect.center().y() - rect_text.height() / 2)
         self.temp_visuals.append(text_item)
         point._text_item = text_item
+        self.temp_anchor = None
         
         # Ready for next point immediately in the continuous drawing sequence (non-blocking!)
         self.viewer.interaction_mode = 'ANCHOR'
@@ -375,12 +406,17 @@ class MainWindow(QMainWindow):
         
         # Start async worker for OCR
         worker = OCRWorker(self.ocr_engine, img_cv, point)
+        point._worker = worker
         worker.finished.connect(self._handle_ocr_result)
         self.ocr_workers.add(worker)
         worker.finished.connect(lambda: self.ocr_workers.discard(worker))
         worker.start()
 
     def _handle_ocr_result(self, value, raw_text, model_name, point):
+        # Ignore completed OCR results if point was already undone
+        if point not in self.points:
+            return
+
         if value is not None:
             point.value = value
             point.confirmed = True
@@ -492,7 +528,8 @@ class MainWindow(QMainWindow):
                 if pt.label == "HP":
                     label_item.setDefaultTextColor(QColor("magenta"))
                 else:
-                    label_item.setDefaultTextColor(QColor("blue"))
+                    lp_color = QColor("#00bfff") if self.invert_mode else QColor("blue")
+                    label_item.setDefaultTextColor(lp_color)
                     
                 rect_l = label_item.boundingRect()
                 label_item.setPos(pt.x - rect_l.width() / 2, pt.y - rect_l.height() - 10)
@@ -522,12 +559,21 @@ class MainWindow(QMainWindow):
             scene = self.viewer.scene
             rect = scene.sceneRect()
             
+            was_inverted = self.viewer.invert_mode
+            if was_inverted:
+                self.viewer.set_invert_mode(False)
+                self._refresh_all_arrows()
+
             image = QImage(int(rect.width()), int(rect.height()), QImage.Format.Format_ARGB32)
             image.fill(Qt.GlobalColor.transparent)
             
             painter = QPainter(image)
             scene.render(painter)
             painter.end()
+
+            if was_inverted:
+                self.viewer.set_invert_mode(True)
+                self._refresh_all_arrows()
             
             try:
                 image.save(file_path)
@@ -664,10 +710,68 @@ class MainWindow(QMainWindow):
             self._refresh_all_arrows()
 
     def _undo(self):
-        if self.points or self.temp_anchor:
-            self._cancel_current()
+        # 1. If currently in middle of placing anchor (yellow marker exists, waiting to box-select text)
+        if self.temp_anchor is not None:
+            if hasattr(self, 'temp_anchor_marker') and self.temp_anchor_marker:
+                if self.temp_anchor_marker.scene() == self.viewer.scene:
+                    self.viewer.scene.removeItem(self.temp_anchor_marker)
+                if self.temp_anchor_marker in self.temp_visuals:
+                    self.temp_visuals.remove(self.temp_anchor_marker)
+                self.temp_anchor_marker = None
+            self.temp_anchor = None
+            self.viewer.interaction_mode = 'ANCHOR'
+            self.viewer.viewport().setCursor(self.red_cross_cursor)
+            step = len(self.points) + 1
+            if self.points:
+                self.status.showMessage(f"Flowline Point {step}: Click next physical point or click Done to finish")
+            else:
+                self.status.showMessage("Flowline Point 1: Click on the physical point")
+                self.finish_flowline_action.setEnabled(False)
             return
+
+        # 2. If points have been placed in the current in-progress flowline
+        if self.points:
+            last_point = self.points.pop()
             
+            # Remove text item
+            if hasattr(last_point, '_text_item') and last_point._text_item:
+                if last_point._text_item.scene() == self.viewer.scene:
+                    self.viewer.scene.removeItem(last_point._text_item)
+                if last_point._text_item in self.temp_visuals:
+                    self.temp_visuals.remove(last_point._text_item)
+                    
+            # Remove dashed connecting line to previous point
+            if hasattr(last_point, '_line_to_prev') and last_point._line_to_prev:
+                if last_point._line_to_prev.scene() == self.viewer.scene:
+                    self.viewer.scene.removeItem(last_point._line_to_prev)
+                if last_point._line_to_prev in self.temp_visuals:
+                    self.temp_visuals.remove(last_point._line_to_prev)
+                    
+            # Remove anchor marker
+            if hasattr(last_point, '_marker') and last_point._marker:
+                if last_point._marker.scene() == self.viewer.scene:
+                    self.viewer.scene.removeItem(last_point._marker)
+                if last_point._marker in self.temp_visuals:
+                    self.temp_visuals.remove(last_point._marker)
+                    
+            # Terminate OCR worker if still running
+            if hasattr(last_point, '_worker') and last_point._worker:
+                if last_point._worker in self.ocr_workers:
+                    last_point._worker.terminate()
+                    last_point._worker.wait()
+                    self.ocr_workers.discard(last_point._worker)
+                    
+            self.viewer.interaction_mode = 'ANCHOR'
+            self.viewer.viewport().setCursor(self.red_cross_cursor)
+            step = len(self.points) + 1
+            if self.points:
+                self.status.showMessage(f"Point {step} undone. Click next physical point or click Done to finish")
+            else:
+                self.status.showMessage("Point 1 undone. Click on the physical point")
+                self.finish_flowline_action.setEnabled(False)
+            return
+
+        # 3. If not in drawing mode or no in-progress points, undo finished arrows on current page
         segments = self.all_finished_segments.get(self.current_page, [])
         if segments:
             segments.pop()
@@ -678,6 +782,7 @@ class MainWindow(QMainWindow):
         if self.points or self.temp_anchor:
             self.points = []
             self.temp_anchor = None
+            self.temp_anchor_marker = None
             for item in self.temp_visuals:
                 if item.scene() == self.viewer.scene:
                     self.viewer.scene.removeItem(item)

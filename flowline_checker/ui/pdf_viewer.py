@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QGraphicsRectItem
 from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QRectF
-from PyQt6.QtGui import QWheelEvent, QMouseEvent, QColor, QPen
+from PyQt6.QtGui import QWheelEvent, QMouseEvent, QColor, QPen, QImage, QPixmap
 
 class PDFViewer(QGraphicsView):
     selection_completed = pyqtSignal(QRectF)
@@ -33,11 +33,36 @@ class PDFViewer(QGraphicsView):
         self.drawing_selection = False
         self.interaction_mode = 'NONE' # 'NONE', 'ANCHOR', 'BOX'
         self.start_scene_pt = QPointF()
+
+        self.invert_mode = False
+        self._raw_pixmap = None
         
     def set_pixmap(self, pixmap):
-        self.pixmap_item.setPixmap(pixmap)
+        self._raw_pixmap = pixmap
+        self._update_display_pixmap()
         self.setSceneRect(self.pixmap_item.boundingRect())
         self.centerOn(self.pixmap_item)
+
+    def get_raw_pixmap(self):
+        return self._raw_pixmap
+
+    def set_invert_mode(self, enabled: bool):
+        self.invert_mode = enabled
+        self._update_display_pixmap()
+        if enabled:
+            self.setBackgroundBrush(QColor("#1e1e1e"))
+        else:
+            self.setBackgroundBrush(Qt.GlobalColor.lightGray)
+
+    def _update_display_pixmap(self):
+        if self._raw_pixmap is None:
+            return
+        if self.invert_mode:
+            img = self._raw_pixmap.toImage()
+            img.invertPixels(QImage.InvertMode.InvertRgb)
+            self.pixmap_item.setPixmap(QPixmap.fromImage(img))
+        else:
+            self.pixmap_item.setPixmap(self._raw_pixmap)
 
     def wheelEvent(self, event: QWheelEvent):
         if event.angleDelta().y() > 0:

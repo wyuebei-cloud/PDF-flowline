@@ -1,3 +1,4 @@
+import re
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel
 from PyQt6.QtCore import Qt
 
@@ -32,7 +33,11 @@ class ValueDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def get_value(self):
-        try:
-            return float(self.input_field.text())
-        except ValueError:
-            return None
+        text = self.input_field.text().strip()
+        match = re.search(r'[-+]?\d+(?:\.\d+)?', text)
+        if match:
+            try:
+                return float(match.group(0))
+            except ValueError:
+                return None
+        return None
