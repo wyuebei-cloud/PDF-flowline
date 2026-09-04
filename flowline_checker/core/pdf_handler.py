@@ -1,6 +1,11 @@
 import fitz
-from PyQt6.QtGui import QImage, QPixmap
 import math
+
+try:
+    from PyQt6.QtGui import QImage, QPixmap
+except ImportError:
+    QImage = None
+    QPixmap = None
 
 def label_offset_distance(text_size, label_text):
     """Tangential clearance between an arrow shaft and its label; grows with the label's line count.
@@ -19,6 +24,8 @@ class PDFHandler:
     def render_page(self, page_number: int):
         if page_number < 0 or page_number >= self.num_pages:
             return None
+        if QImage is None or QPixmap is None:
+            raise ImportError("PyQt6 is required to render PDF pages to QPixmap.")
         
         self.current_page_idx = page_number
         page = self.doc.load_page(page_number)
