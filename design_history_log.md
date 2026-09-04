@@ -34,29 +34,34 @@
     *   `Esc`：取消当前正在画的一半线段（Cancel Current）。
     *   `Ctrl+S`：一键触发图像导出（Save Image）。
 
-### 4. API 稳定性与后备机制 (API Stability & Fallback) ✨ *New*
-*   **多模型轮询**：针对 API 高峰期不稳定的问题，引入了自动重试机制。程序会按顺序尝试 `gemini-3.1-flash-lite` (GA)、`gemini-2.5-flash-lite` 和 `gemini-2.0-flash-lite`。
-*   **透明化报错**：若所有后备模型均失效，程序将弹出详细错误窗口告知原因，不再发生闪退，保证用户工作流不中断。
-*   **模型标识展示**：在确认高程数字的对话框中新增小字显示，告知用户当前结果是由哪个模型生成的，方便监控 API 健康状态。
-*   **性能优化**：针对 3.1 系列模型启用了 `LOW` 思考等级配置，在保证识别精度的前提下提升响应速度。
+### 4. 动态箭头与字号调节 (Dynamic Arrow & Text Size Controls)
+*   **功能描述**：工具栏配备两个独立滑动条，支持用户实时调整箭头大小（5–50 px）与标注字号（10–80 pt）。
+*   **实时重绘机制**：拖动任一滑动条会触发 `_refresh_all_arrows()`，清空当前页面所有已绘制的箭头并以新尺寸瞬间重新渲染。
 
-### 5. 原生 PDF 矢量文本与数字导出 (Native PDF Text & Numerical Annotations) ✨ *New*
+### 5. 所见即所得图像导出 (WYSIWYG Image Export)
+*   **功能描述**：将屏幕当前场景（PDF 底图 + 所有红色箭头与高差标注）以高分辨率导出为 PNG 或 JPEG 图像。
+*   **高保真渲染**：利用 Qt 的 `QImage` + `QPainter` 对完整的 `QGraphicsScene` 按原生分辨率进行离屏渲染，保证导出成果与屏幕显示完全一致。
+
+### 6. API 稳定性与后备机制 (API Stability & Fallback) (历史记录)
+*   **多模型轮询**：针对早先云端 API 高峰期不稳定的问题，曾引入自动重试机制（依次尝试 `gemini-3.1-flash-lite` -> `gemini-2.5-flash-lite` -> `gemini-2.0-flash-lite`）。现已由本地离线 OCR 全面替代。
+*   **透明化报错**：若模型失效，程序弹出详细错误窗口告知原因，不发生闪退。
+*   **模型标识展示**：对话框中显示模型来源，方便监控服务状态。
+
+### 7. 原生 PDF 矢量文本与数字导出 (Native PDF Text & Numerical Annotations) ✨ *New*
 *   **功能描述**：在导出 PDF 标注时，除了红色水流箭头，程序现在还会以原生矢量 PDF 注释形式，导出高程差数字和“HP/LP”文字标注。
 *   **数学排版与偏置**：高程差数字会自动放置在线段几何中点，并沿着垂直于箭线的法线方向自动进行微调偏置（Tangential Offset），以避免文字与线条重叠。
 *   **极值点标签去重**：在多段流线共享同一个高程节点时，通过页面级坐标哈希去重（`drawn_labels`），确保同一个高低点标签在 PDF 文件中只绘制一次，绝不发生文字重合重叠。
 
-### 6. PDF 标注旋转与排版自适应 (PDF Annotation Rotation & Dynamic Sizing) ✨ *New*
+### 8. PDF 标注旋转与排版自适应 (PDF Annotation Rotation & Dynamic Sizing) ✨ *New*
 *   **解决旋转偏转**：修复了在旋转 PDF 页面中导出文字与数字时逆时针偏转的问题。通过传递当前页面的 `page.rotation` 旋转参数，确保导出的 FreeText 原生注释水平直立、无裁剪、不换行。
 *   **动态宽高对调**：在 90° 或 270° 旋转的页面中，自动对调文字包围盒的宽度与高度，彻底杜绝了因空间受限导致的文本折行与截断。
 
-### 7. 异步非阻塞后台 OCR 与可点击编辑数字 (Asynchronous Background OCR & Interactive Editing) ✨ *New*
+### 9. 异步非阻塞后台 OCR 与可点击编辑数字 (Asynchronous Background OCR & Interactive Editing) ✨ *New*
 *   **后台并发处理**：引入 `OCRWorker` 线程，将 OCR 请求剥离主线程。框选数字后，界面立即恢复红十字光标，用户可连续快速绘制下一个点。
 *   **暂存状态反馈**：框选区域左侧会立即生成蓝色的暂存数字（初始为 `...`，解析完毕显示数字，识别错误显示 `?`）。
 *   **直接单击修改**：支持用户在点击 "Done" 完成计算前，随时单击任意蓝色数字唤起输入框进行手动修改和二次确认，大幅缩短流线校对时间。
 
----
-
-### 8. 本地离线 OCR 引擎——PP-OCRv6 tiny_rec (Local Offline OCR Engine) ✨ *New*
+### 10. 本地离线 OCR 引擎——PP-OCRv6 tiny_rec (Local Offline OCR Engine) ✨ *New*
 *   **功能描述**：彻底替换了原有的 Google Gemini API OCR 方案，改用百度 PP-OCRv6 tiny_rec 本地 ONNX 推理。用户不再需要申请 API Key、不再依赖网络连接、不再承担 API 调用费用。
 *   **模型选择**：PP-OCRv6 是百度 PaddleOCR 于 2026.6.11 发布的第六代 OCR 系统，tiny_rec 档仅 1.1M 参数 + 4.3MB ONNX 模型文件，在标高数字（含 "FS"、"EL" 后缀）和 HP/LP 标签上达到 94%-99.99% 的识别置信度。
 *   **推理引擎**：ONNX Runtime CPU 后端，无需 CUDA/GPU，无需 PaddlePaddle 框架。
@@ -65,10 +70,10 @@
     *   `core/ocr_engine.py` 完全重写，去掉 `google-genai` 依赖
     *   新增 `_rotate_image()` 静态方法：利用 `cv2.rotate` 实现 90/180/270 度旋转
     *   `_recognize_with_local()` 改为多角度轮询 + 置信度排序
-    *   `ui/main_window.py`：去掉 API Key 加载逻辑和 "Set Gemini API Key" 按钮，替换为 "OCR Engine: Local PP-OCRv6" 信息提示
-    *   `launch.bat`：自动安装 `paddleocr` + `onnxruntime`，首次启动时从 HuggingFace 下载模型并缓存
+    *   `ui/main_window.py`：去掉 API Key 加载逻辑和设置按钮，替换为 "OCR Engine: Local PP-OCRv6" 提示
+    *   `launch.bat`：自动安装 `paddleocr` + `onnxruntime`，首次启动时自动下载并缓存模型
 
-### 9. PDF 浏览器反色护眼模式 (PDF Viewer Invert Mode) ✨ *New*
+### 11. PDF 浏览器反色护眼模式 (PDF Viewer Invert Mode) ✨ *New*
 *   **功能描述**：针对工程师长时间查看白底黑字图纸容易眼疲劳的问题，新增了独立的黑底白线反色浏览模式。
 *   **毫秒级平滑渲染**：在 `PDFViewer` 中调用 Qt 底层硬件加速的 `QImage.invertPixels(QImage.InvertMode.InvertRgb)`，平滑高效，视口周围区域同步变为舒适深灰色（`#1e1e1e`）。
 *   **隔离保护机制**：
@@ -76,7 +81,7 @@
     *   **导出 PDF/图片零干扰**：导出 PDF 依然通过 PyMuPDF 直接对矢量层进行标准标注，导出的成品文件依然是标准的白底黑字工程图；导出图片在渲染前临时切回原色，确保交付文件符合规范。
 *   **快捷操作与偏好记忆**：工具栏配置纯英文 `Invert Mode` 按钮，绑定快捷键 `Ctrl+I`，并通过 `QSettings` 持久化保存用户的反色模式偏好。
 
-### 10. 绘制中单点撤销与连通性保持 (Point-by-Point Undo During Drawing) ✨ *New*
+### 12. 绘制中单点撤销与连通性保持 (Point-by-Point Undo During Drawing) ✨ *New*
 *   **功能描述**：大幅优化了流线绘制过程中的撤销交互体验。在尚未点击 "Done" 完成流线时，按 `Ctrl+Z` 不再粗暴清空整条在建流线，而是精准回退上一个点。
 *   **状态与图元精准拆解**：
     *   将每个点的物理黄色锚点标记（`_marker`）、前向连接虚线（`_line_to_prev`）、标高识别文本框（`_text_item`）以及后台 `OCRWorker` 线程精确绑定到 `ElevationPoint` 实例上。
@@ -84,7 +89,7 @@
     *   当已添加若干完整标高点时，按 `Ctrl+Z` 仅弹出并清除末尾点及其视觉元素与 OCR 线程，**前面已绘制的节点、连接虚线和识别结果完全保留**。
 *   **无缝续画与全局放弃**：撤销后界面与光标无缝维持在 `ANCHOR` 准备状态，用户可直接点击新位置继续添加后续点。若需一次性放弃整条在建流线，依然可通过键盘 `Esc` 键一键全局重置。
 
-### 11. 单元测试体系与核心计算解耦 (Unit Testing & Pure Logic Decoupling) ✨ *New*
+### 13. 单元测试体系与核心计算解耦 (Unit Testing & Pure Logic Decoupling) ✨ *New*
 *   **半自动工具的测试建立原则（Testing Principles for Semi-Automated Tools）**：
     *   **原则 1：坚决不做“全自动 UI 交互测试”（No Flaky E2E GUI Tests）**
         *   半自动工具的核心特征在于**人是验证与纠错闭环的关键一环**（人手点选物理锚点、人眼框选高程、人眼复核 OCR 识别值并在异常时单击快速修改）。
@@ -100,7 +105,9 @@
         2.  **几何流向与极值拓扑 (`test_flow_math.py`)**：严格验证 V 型谷地（LP）、单峰（HP）、平水（FLAT）、单调坡度以及平台段（无误判极值）的拓扑判定；锁定水往低处流的端点自动校准逻辑。
         3.  **无头 PDF 矢量导出 (`test_pdf_export.py`)**：基于 PyMuPDF 内存虚拟单页验证原生线段箭头、差值文本、极值点 FreeText 注释的完整性，并覆盖 90° 旋转图纸的导出容错。
 
-### 🐞 核心解决的问题追溯
+---
+
+## 🐞 核心解决的问题追溯与架构决策 (Bug Fixes & Decisions)
 
 ### Bug: ArrowGroup 绘制覆盖导致的选框失踪
 *   **解决**：重写了 `ArrowGroup` 的 `paint` 事件。通过计算 `boundingRect()` 并应用 `DashLine` 画笔，成功让复合图形在被选中时能显现出类似 CAD 的选择框。
@@ -109,11 +116,11 @@
 *   **解决**：实现了 **Cursor Stashing (光标保险柜)** 机制。在 Pan 动作触发瞬间存入当前光标状态，Release 后精准还原，确保多任务交互的光标连续性。
 
 ### Bug: 导出图像时崩溃 — `AttributeError: 'PDFHandler' object has no attribute 'filepath'`
-*   **问题描述**：点击"Export to Image"时程序立即崩溃。根本原因是 `PDFHandler.__init__` 接收了 `pdf_path` 参数，却从未将其存储为实例属性。而 `main_window.py` 中的 `_export_image()` 试图读取 `self.pdf_handler.filepath` 来预填充保存对话框的初始目录，导致 `AttributeError`。
+*   **问题描述**：点击 "Export to Image" 时程序立即崩溃。根本原因是 `PDFHandler.__init__` 接收了 `pdf_path` 参数，却从未将其存储为实例属性。而 `main_window.py` 中的 `_export_image()` 试图读取 `self.pdf_handler.filepath` 来预填充保存对话框的初始目录，导致 `AttributeError`。
 *   **解决**：在 `PDFHandler.__init__` 中新增一行 `self.filepath = pdf_path`，将路径在打开文档的同时立即持久化。
 
 ### Bug: PDF 原生矢量箭头导出位置偏移（双重旋转问题）
-*   **原因**：PyMuPDF 中的 `page.rect` 在页面本身存在旋转时（例如旋转90度）已经预先交换了宽高。再次乘以旋转矩阵 `page.rotation_matrix * mat` 导致旋转被重复应用了两次，产生了错误的宽高偏移。
+*   **原因**：PyMuPDF 中的 `page.rect` 在页面本身存在旋转时（例如旋转 90 度）已经预先交换了宽高。再次乘以旋转矩阵 `page.rotation_matrix * mat` 导致旋转被重复应用了两次，产生了错误的宽高偏移。
 *   **解决**：将坐标变换的包围盒计算对象由已旋转的 `page.rect` 改为未旋转的原始几何边界 `page.cropbox`，实现了完全精确、零误差的旋转页面坐标映射。
 
 ### Bug: 导出 PDF 中文字和数字缺失
@@ -130,10 +137,14 @@
 *   **原因**：在页面存在旋转（如旋转 270°）时，FreeText 标注未指定 `rotate` 旋转方向，且其包围盒大小未按照旋转进行对调，导致文字阅读方向不匹配，并且由于文本框尺寸不符而发生折行或截断。
 *   **解决**：在 `pdf_handler.py` 中将 `rotate=page.rotation` 传入 `add_freetext_annot(...)`。并在页面旋转 90°/270° 时自动对调文字包围盒的宽高，完美实现了水平向上的矢量文字导出效果。
 
-### 功能探索: 比例尺校准与坡度/长度显示（实测后已移除）
+### 架构决策: 按页独立存储线段数据 (Per-Page Segment Storage)
+*   **设计思路**：流线段数据统一存储在以页码为键的字典中 `all_finished_segments: dict[int, list[tuple]]`。
+*   **优势**：实现了翻页浏览、独立撤销、局部刷新与按页导出等操作的完全解耦，彻底避免了跨页面的数据串扰。
+
+### 功能探索与移除: 比例尺校准与坡度/长度显示 (Scale Calibration & Slope Display - Removed)
 *   **功能描述**：曾新增 "Calibrate Scale" 工具模式——点击图上两个已知实际距离的点（如图形比例尺两端），输入真实距离，按页存储 ft/像素比例；校准后每个箭头标签显示两行：高差 + `L=xx.xx' S=x.xx%`（坡度 = 高差 ÷ 水平长度 × 100%）。屏幕与 PDF 导出共用同一格式化函数，保证所见即所得。
 *   **移除原因**：实测发现扫描 PDF 上无法可靠获取流线的真实长度——流线很少是两点间的直线，点选位置近似的是标注文字的锚点而非实际排水路径，由此推算的坡度"看似精确、实则不可信"。**在扫描图上，高差 (Δ) 仍是唯一可靠的信号。** 该功能整体撤下。
-*   **保留的副产品**（与校准无关，见下方各条）：`_finish_flowline` 布尔返回值及翻页/导出阻断、`label_text` 必填参数、共享偏移函数、实测文字框宽度、FLAT 平坡段渲染。
+*   **保留的副产品**：`_finish_flowline` 布尔返回值及翻页/导出阻断、`label_text` 必填参数、共享偏移函数 `label_offset_distance`、实测文字框宽度、FLAT 平坡段渲染。
 *   **教训**：用不可靠的测量值算出一个"看起来很精确"的数字，比不显示这个数字更糟——应先在实际场景中验证测量本身可信，再在其上构建显示功能。
 
 ### 🐞 Bug: 校准状态在上下文切换时泄漏（代码评审修复，随功能一并移除）
@@ -163,7 +174,8 @@
 3.  **持久化配置文件**：通过注册表管理，不产生多余的本地缓存文件。
 4.  **`flowline_checker/core/flow_math.py`**：纯计算与正则解析模块，剥离业务逻辑与 GUI。
 5.  **`tests/`**：轻量单元测试套件（21 个用例，0.04s 运行时间，零额外测试依赖）。
-6.  **`design_history_log.md`**：本文档——中英双语开发记录。
+6.  **`.github/workflows/test.yml`**：GitHub Actions CI 自动化测试流水线。
+7.  **`design_history_log.md`**：本文档——中英双语开发记录。
 
 ---
 
@@ -187,16 +199,16 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 
 ## 🛠 Feature Log
 
-### 1. Automatic Extrema Labeling (HP/LP)
+### 1. Automatic Extrema Labeling (HP/LP) ✨ *New*
 - **What it does**: After a flowline sequence is drawn, the app performs geometric topology analysis on all intermediate points.
 - **Logic**: If a point's value is lower than both neighbors → labeled **LP (Low Point)**; higher than both → labeled **HP (High Point)**.
 - **Visual**: HP labels are rendered in magenta, LP labels in blue. Both scale dynamically with the text-size slider.
 
-### 2. Directory Persistence
+### 2. Directory Persistence ✨ *New*
 - **What it does**: The app remembers the last folder used for both opening files and exporting images, even after a restart.
 - **Implementation**: Uses Qt's `QSettings` for registry-level persistence, storing separate keys for "last opened dir" and "last exported dir".
 
-### 3. Object-Level Editing & Keyboard Shortcuts
+### 3. Object-Level Editing & Keyboard Shortcuts ✨ *New*
 - **Arrow grouping**: Introduced `ArrowGroup` to bundle the line body, arrowhead polygon, and delta-value text into a single selectable entity.
 - **Selection feedback**: Clicking an arrow shows a blue dashed bounding box, consistent with CAD-style selection UX.
 - **Shortcuts**:
@@ -206,18 +218,17 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
   - `Ctrl+S` — One-key trigger for image export
 
 ### 4. Dynamic Arrow & Text Size Controls
-- Two toolbar sliders let the user independently adjust arrow head size (5–50 px) and label text size (10–80 pt) in real time.
-- Changing either slider calls `_refresh_all_arrows()`, which clears and redraws all current-page arrows at the new sizes on the fly.
+- **What it does**: Two toolbar sliders let the user independently adjust arrowhead size (5–50 px) and label text size (10–80 pt) in real time.
+- **Real-Time Redraw**: Changing either slider calls `_refresh_all_arrows()`, which clears and redraws all current-page arrows at the new sizes on the fly.
 
 ### 5. WYSIWYG Image Export
-- Exports the exact on-screen scene (PDF background + all red arrows/labels) to a PNG or JPEG file.
-- Uses Qt's `QImage` + `QPainter` to render the full `QGraphicsScene` at native resolution, ensuring the output matches what is visible on screen.
+- **What it does**: Exports the exact on-screen scene (PDF background + all red arrows/labels) to a PNG or JPEG file.
+- **High-Fidelity Rendering**: Uses Qt's `QImage` + `QPainter` to render the full `QGraphicsScene` at native resolution, ensuring the deliverable strictly matches what is visible on screen.
 
-### 6. API Stability & Fallback Mechanism ✨ *New*
-- **Multi-model Retry**: To combat API instability during peak hours, implemented an automatic fallback sequence: `gemini-3.1-flash-lite` (GA) -> `gemini-2.5-flash-lite` -> `gemini-2.0-flash-lite`.
-- **Error Transparency**: Instead of crashing on API failure, the app now displays a critical error dialog explaining the cause, allowing users to retry without losing progress.
-- **Active Model Display**: The confirmation dialog now features a small label showing which model successfully processed the OCR, providing transparency on API health.
-- **Optimized Reasoning**: Configured `ThinkingLevel.LOW` for Gemini 3.1 series models to balance speed and accuracy for OCR tasks.
+### 6. API Stability & Fallback Mechanism (Legacy)
+- **Multi-Model Retry**: To combat earlier cloud API instability during peak hours, implemented an automatic fallback sequence (`gemini-3.1-flash-lite` -> `gemini-2.5-flash-lite` -> `gemini-2.0-flash-lite`). Now superseded by the local offline OCR engine.
+- **Error Transparency**: Displays clear error dialogs explaining failure causes without crashing.
+- **Model Display**: Displayed active model origin in the confirmation dialog.
 
 ### 7. Native PDF Text & Numerical Annotations ✨ *New*
 - **What it does**: When exporting to PDF, the program now embeds the actual numerical elevation difference values and the "HP" / "LP" extrema labels as native, high-quality vector FreeText annotations.
@@ -229,11 +240,23 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - **Dynamic Box Dimension Swapping**: Automatically swaps bounding box width and height on 90°/270° rotated PDF pages, preventing text wrapping or clipping.
 
 ### 9. Asynchronous Non-blocking OCR & Interactive Editing ✨ *New*
-- **Non-blocking Drawing Workflow**: Spawns a background thread (`OCRWorker`) for Gemini API requests. The GUI immediately returns to `ANCHOR` mode, letting users draw subsequent points continuously without blocking.
+- **Non-blocking Drawing Workflow**: Spawns a background thread (`OCRWorker`) for OCR processing. The GUI immediately returns to `ANCHOR` mode, letting users draw subsequent points continuously without waiting.
 - **Temporary Clickable Blue Labels**: Renders a temporary blue number (initially `...`, updates to the float value, or `?` on OCR failure) to the left of each selection box.
 - **Interactive Editing**: Users can single-click any blue number at any time to open `ValueDialog` and manually correct it prior to clicking "Done".
 
-### 10. PDF Viewer Invert Mode (Dark Theme Eye Protection) ✨ *New*
+### 10. Local Offline OCR Engine — PP-OCRv6 tiny_rec ✨ *New*
+- **What it does**: Completely replaces the cloud-based Google Gemini API with Baidu's local offline PP-OCRv6 tiny_rec model running on ONNX Runtime CPU. Zero API key configuration, zero cloud network dependency, zero API cost.
+- **Model Rationale**: PP-OCRv6 tiny_rec (Baidu PaddleOCR, released 2026.6.11) is an ultra-lightweight text recognition model with only 1.1M parameters and a 4.3MB ONNX model file. Achieves 94%–99.99% confidence on engineering elevation numbers (including "FS", "EL" suffixes) and HP/LP labels.
+- **Inference Engine**: Runs locally via ONNX Runtime on CPU — no CUDA/GPU required, no heavy PaddlePaddle framework needed.
+- **4-Angle Rotation Handling**: Since PP-OCRv6 is trained on horizontal text, an automated 4-direction polling mechanism (0° → 90° → 180° → 270°) rotates the cropped cropbox 4 times (~8ms total) and selects the candidate with the highest confidence score, ensuring rotated numbers on PDF plans are recognized reliably.
+- **Implementation Details**:
+  - `core/ocr_engine.py` completely rewritten, removing `google-genai` dependencies.
+  - Added static method `_rotate_image()` using `cv2.rotate`.
+  - `_recognize_with_local()` evaluates 4 rotations and sorts by confidence.
+  - `ui/main_window.py`: Removed API key prompts and buttons, replaced with "OCR Engine: Local PP-OCRv6" status.
+  - `launch.bat`: Automatically provisions dependencies and caches the model on first launch.
+
+### 11. PDF Viewer Invert Mode (Dark Theme Eye Protection) ✨ *New*
 - **What it does**: Provides a toggleable dark viewing mode (black background with white linework) to reduce eye strain when reviewing high-contrast civil engineering plans for extended periods.
 - **Hardware-Accelerated Inversion**: Uses Qt's native `QImage.invertPixels(QImage.InvertMode.InvertRgb)` in `PDFViewer` for sub-millisecond page inversion. The outer viewport canvas automatically switches to dark gray (`#1e1e1e`) to eliminate white glare around the page.
 - **Strict Isolation Guarantees**:
@@ -241,7 +264,7 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
   - **Export Integrity Unaffected**: Native PDF export (`Ctrl+E`) annotates the un-inverted vector document directly via PyMuPDF. Image export (`Ctrl+S`) renders from the raw pixmap, ensuring all exported deliverables strictly adhere to standard white-background engineering drafting specs.
 - **UX & Persistence**: Features a dedicated `Invert Mode` toolbar button (shortcut: `Ctrl+I`). Viewport preference is persisted via `QSettings` across sessions.
 
-### 11. Point-by-Point Undo During In-Progress Drawing ✨ *New*
+### 12. Point-by-Point Undo During In-Progress Drawing ✨ *New*
 - **What it does**: Overhauls the in-progress drawing undo experience. Pressing `Ctrl+Z` before clicking "Done" no longer discards the entire polyline sequence — it now pops only the last placed point.
 - **Fine-Grained Entity Binding**:
   - Each `ElevationPoint` directly tracks its yellow anchor marker (`_marker`), dashed connecting line to the previous point (`_line_to_prev`), interactive blue/cyan text item (`_text_item`), and active background `OCRWorker` thread (`_worker`).
@@ -249,9 +272,22 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
   - If multiple points have been completed, `Ctrl+Z` pops the trailing point and cleanly tears down its text, connecting line, anchor dot, and any running OCR worker, **preserving all preceding points, dashed lines, and values**.
 - **Seamless Continuity**: Leaves the cursor in `ANCHOR` crosshair mode, allowing users to immediately click a new physical location and continue extending the flowline. `Esc` remains available to abandon the entire in-progress sequence in one keystroke.
 
+### 13. Unit Testing Architecture & Pure Logic Decoupling ✨ *New*
+- **Testing Principles for Semi-Automated Engineering Tools**:
+  - **Principle 1: Avoid Flaky End-to-End GUI Testing (Anti-Pattern)**:
+    In semi-automated desktop tools, human eyes and manual clicks form an essential part of the closed-loop verification (pointing physical locations, box-selecting text, visually confirming OCR readings, single-click editing). Automating Qt mouse events, bounding box drags, and asynchronous worker waits creates brittle, flaky tests with prohibitive maintenance overhead and poor ROI. UI and interaction quality are best verified via a lightweight manual pre-release checklist.
+  - **Principle 2: Decouple Pure Logic to Lock Determinism**:
+    Tests must strictly target deterministic, high-impact business logic. Pure mathematical functions and string parsers previously embedded within `ui/main_window.py` and `core/ocr_engine.py` were extracted into a standalone, pure-Python module: `core/flow_math.py`.
+  - **Principle 3: Zero Extra Dependencies & Sub-Second Execution**:
+    Tests are built using Python's standard `unittest` framework (natively runnable via `python -m unittest` or `pytest`). By isolating domain math from heavy ML frameworks (`paddleocr` takes ~8 seconds to import), all 21 unit tests execute in **0.04 seconds**, offering immediate developer feedback.
+  - **Principle 4: High-Value Regression Protection**:
+    1. **Elevation String Cleaning & Extraction (`test_elevation_parsing.py`)**: Tests civil engineering suffixes (`FS`, `EL`, `TOP`, `BOT`), prefixes, negative elevations, bracket wrappers, and corrupt OCR noise, safeguarding regex updates.
+    2. **Flow Direction & Extrema Topology (`test_flow_math.py`)**: Verifies valley (LP), peak (HP), flat (FLAT), monotonic, and plateau sequences; ensures downhill arrow direction correction (water always flows downhill).
+    3. **Headless PDF Vector Export (`test_pdf_export.py`)**: Generates in-memory test PDFs to verify line annotations, closed-arrow line ends, delta freetext, and HP/LP freetext labels, including 90° rotated page support.
+
 ---
 
-## 🐞 Bug Fixes & Design Decisions
+## 🐞 Bug Fixes & Architectural Decisions
 
 ### Bug: ArrowGroup Selection Box Disappearing
 - **Problem**: Composite `QGraphicsItemGroup` items did not show a selection outline by default.
@@ -286,66 +322,44 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - **Fix**: Projected center offsets in screen space, mapped back to unrotated space via `inv_trans`, passed `rotate=page.rotation` to `add_freetext_annot`, and swapped dimensions for 90°/270° rotations.
 
 ### Design Decision: Per-Page Segment Storage
-- Flowline segments are stored in `all_finished_segments: dict[int, list[tuple]]`, keyed by page index. This allows independent undo, display, and export per page without cross-page contamination.
+- **Design Rationale**: Flowline segments are stored in `all_finished_segments: dict[int, list[tuple]]`, keyed by page index.
+- **Benefits**: Allows independent undo, display, and export per page without cross-page data contamination.
 
-### Feature: Scale Calibration + Slope/Length Display
+### Feature Exploration & Removal: Scale Calibration + Slope/Length Display
 - **Problem**: Arrows only showed the elevation difference (Δ). Scanned plans carry no reliable machine-readable scale, so run length and slope (%) — the numbers a reviewer actually checks against the design — could not be displayed.
-- **Design**: Two-point calibration instead of typed drawing scale ("1\"=20'"). Scans are frequently re-plotted or resized, so trusting the title-block scale is unsafe; clicking both ends of the printed graphic scale bar (or any dimensioned line) and entering the real distance measures the *actual* feet-per-pixel of the raster.
-- **Implementation**:
-  - New `'CALIBRATE'` interaction mode in `PDFViewer` reuses the existing `point_selected` signal; `MainWindow._handle_anchor` routes clicks by mode.
-  - Scale stored per page in `page_scales: dict[int, float]` (ft/pixel), mirroring the per-page segment storage decision — detail sheets often use a different scale. Uncalibrated pages keep the legacy Δ-only label.
-  - `_format_arrow_text()` is the single label source shared by on-screen drawing and PDF export: `Δ` on line 1, `L=xx.xx' S=x.xx%` on line 2 (slope = Δ / horizontal length × 100). Calibrating a page retroactively relabels its existing arrows via `_refresh_all_arrows()`.
-  - `PDFHandler.add_arrow_annotation` gained an optional `label_text` param; the freetext box now grows with line count and longest line, and the tangential offset scales with text height so two-line labels clear the arrow body.
-  - Toolbar shows the resolved scale as a familiar drawing scale (`Scale: 1" = 20.0'`, derived from ft/px × render DPI); `Esc` cancels an in-progress calibration.
-- **Deliberate omission**: The Greek Δ glyph is kept off the exported label's first line — PyMuPDF freetext annotations with the base-14 `helv-bold` font are Latin-1 encoded and would garble non-Latin glyphs.
+- **Design Attempt**: Two-point calibration instead of typed drawing scale ("1\"=20'"). Clicking both ends of the printed graphic scale bar and entering the real distance measured the actual feet-per-pixel of the raster. Scale was stored per page in `page_scales: dict[int, float]`.
+- **Outcome & Removal**: Removed after field testing on real grading plans. There is no reliable way to capture the true flowline run length on a scanned PDF — flowlines are rarely straight point-to-point, and click positions approximate text anchors rather than the actual drainage path. A slope derived from that length is precise-looking but untrustworthy. **Elevation difference (Δ) remains the only reliable signal on scanned plans.**
+- **Kept from that work**: `_finish_flowline` returning True/False with page-nav/export aborting when blocked; `label_text` as a required `add_arrow_annotation` parameter; shared `label_offset_distance()` helper; measured freetext box width via `fitz.get_text_length`; and FLAT rendering for equal elevations.
+- **Lesson**: A feature that computes a plausible-looking number from an unreliable measurement is worse than not showing the number — validate the measurement's trustworthiness in the field before building the display on top of it.
 
 ### Bug: Calibration State Leaked Across Context Switches (Code-Review Fixes)
-- **Problem**: A code review of the calibration feature found four confirmed state-machine holes: (1) page navigation did not cancel an in-progress calibration, so the two calibration clicks could straddle two pages and store a bogus ft/px under the new page — every arrow there would show a wrong-but-plausible L/S%; (2) `Ctrl+Z` pressed mid-calibration fell through `_undo`'s `points/temp_anchor` guard and permanently deleted the last committed arrow; (3) toggling Calibrate Scale while a flowline point's OCR was still pending let `_finish_flowline` early-return, then activated CALIBRATE anyway over the orphaned half-drawn flowline; (4) `Export to Image` rendered the scene with the lime calibration markers still present, baking scaffolding into the deliverable.
-- **Fix**: One chokepoint, `_cancel_calibration()` (uncheck the action; its `toggled(False)` handler owns the teardown), invoked at every context switch: `_prev_page`/`_next_page`, `_undo`, `_export_image`, `_export_pdf`, and `_cancel_current`. For (3), `_toggle_calibrate_mode` now verifies the flowline actually finalized (`self.points or self.temp_anchor` empty after unchecking Draw Flowline); if the finalize was blocked it re-enters drawing mode and refuses to activate calibration.
+- **Problem**: A code review of the calibration feature found four confirmed state-machine holes: (1) page navigation did not cancel an in-progress calibration; (2) `Ctrl+Z` pressed mid-calibration fell through `_undo`'s guards and permanently deleted the last committed arrow; (3) toggling Calibrate Scale while a flowline point's OCR was pending orphaned the half-drawn flowline; (4) `Export to Image` rendered the scene with calibration markers still present.
+- **Fix**: One chokepoint, `_cancel_calibration()` (uncheck the action; its `toggled(False)` handler owns teardown), invoked at every context switch: `_prev_page`/`_next_page`, `_undo`, `_export_image`, `_export_pdf`, and `_cancel_current`.
 - **Lesson**: A checkable tool mode is a resource with a lifecycle — every action that changes page, document, or output context must release it explicitly, not assume the user toggled it off first.
 
 ### Bug: Blocked `_finish_flowline` Silently Ignored by Callers (Pre-Existing)
-- **Problem**: `_finish_flowline` early-returns with a warning when a point's OCR is still pending or its value is invalid — but it returned nothing, so callers couldn't tell. Two long-standing consequences: (1) page navigation incremented `current_page` anyway, so the still-pending points were later filed under the *wrong page index* (arrows drawn at wrong positions, exported onto the wrong PDF page); (2) `Export to PDF` proceeded anyway and popped a "Success" dialog while silently omitting the flowline the user had just drawn.
-- **Fix**: `_finish_flowline` now returns `True`/`False`. Page navigation and both export paths check the result and abort the context switch when finalization is blocked (`if (self.points or self.temp_anchor) and not self._finish_flowline(): return`), keeping the user on the page with a status-bar hint.
+- **Problem**: `_finish_flowline` early-returns with a warning when a point's OCR is still pending or its value is invalid — but it returned nothing, so callers couldn't tell. Two consequences: (1) page navigation incremented `current_page` anyway, filing pending points under the wrong page index; (2) `Export to PDF` proceeded anyway and popped a "Success" dialog while silently omitting the flowline just drawn.
+- **Fix**: `_finish_flowline` now returns `True`/`False`. Page navigation and both export paths check the result and abort the context switch when finalization is blocked, keeping the user on the page with a status-bar hint.
 
 ### Cleanup: One Owner for Label Geometry and Content (Code-Review Items)
 - `label_text` is now a **required** parameter of `add_arrow_annotation`; the dead `None` fallback that re-implemented delta formatting inside `PDFHandler` is gone — `MainWindow._format_arrow_text` is the only place that knows what an arrow label says.
-- The tangential label-offset formula, previously copy-pasted in both renderers, moved to a shared module-level helper `label_offset_distance()` in `core/pdf_handler.py`, imported by the on-screen renderer — screen and PDF placement can no longer drift.
-- The freetext box width is now **measured** with `fitz.get_text_length(line, fontname="hebo", ...)` instead of the `0.62 × character-count` heuristic, so label format changes can never silently clip in exports.
-- `_update_scale_info()` moved inside `_display_current_page()` (the single chokepoint for page renders) instead of being manually appended at each navigation site — a future goto-page path cannot show a stale scale.
+- The tangential label-offset formula moved to a shared module-level helper `label_offset_distance()` in `core/pdf_handler.py`, imported by the on-screen renderer — screen and PDF placement can no longer drift.
+- The freetext box width is now **measured** with `fitz.get_text_length(line, fontname="hebo", ...)` instead of heuristic character counts.
 
-### Bug: Equal Elevations Drew an Arbitrary-Direction Arrow
-- **Problem**: `is_reverse = p2.value > p1.value` is False when the two elevations are equal, so a flat segment silently drew an arrow from p1 to p2 — the direction was just click order, presented with the same authority as a real flow direction.
+### Bug: Equal Elevations Drew an Arbitrary-Direction Arrow (FLAT Segment)
+- **Problem**: `is_reverse = p2.value > p1.value` is False when two elevations are equal, so a flat segment silently drew an arrow from p1 to p2 — the direction was just click order, presented with the same authority as a real flow direction.
 - **Fix**: Flat segments (delta == 0) are drawn as a plain connecting line with no arrowhead, labeled `FLAT`. The PDF export mirrors this: `set_line_ends` with the closed-arrow head is only applied when the elevations differ. HP/LP detection already used strict comparisons, so equal neighbors were never mislabeled.
-
-### Design Decision: Scale Calibration / Slope Display Removed After Field Testing
-- **Outcome**: The two-point scale calibration and L/S% labels (added earlier on this branch) were removed after real-plan testing. There is no reliable way to capture the true flowline run length on a scanned PDF — flowlines are rarely straight point-to-point, and the click positions approximate text anchors, not the actual drainage path — so a slope derived from that length is precise-looking but untrustworthy. **Elevation difference (Δ) remains the reliable signal on scanned plans.**
-- **Kept from that work** (independent of calibration): `_finish_flowline` returning True/False with page-nav/export aborting when blocked; `label_text` as a required `add_arrow_annotation` parameter; the shared `label_offset_distance()` helper; measured freetext box width via `fitz.get_text_length`; multi-line label support in the PDF exporter; and FLAT rendering for equal elevations.
-- **Lesson**: A feature that computes a plausible-looking number from an unreliable measurement is worse than not showing the number — validate the measurement's trustworthiness in the field before building the display on top of it.
-
-### Architecture & Testing: Unit Test Suite & Pure Logic Decoupling
-- **Testing Principles for Semi-Automated Engineering Tools**:
-  - **Principle 1: Avoid Flaky End-to-End GUI Testing (Anti-Pattern)**:
-    In semi-automated desktop tools, human eyes and manual clicks form an essential part of the closed-loop verification (pointing physical locations, box-selecting text, visually confirming OCR readings, single-click editing). Automating Qt mouse events, bounding box drags, and asynchronous worker waits creates brittle, flaky tests with prohibitive maintenance overhead and poor ROI. UI and interaction quality are best verified via a lightweight manual pre-release checklist.
-  - **Principle 2: Decouple Pure Logic to Lock Determinism**:
-    Tests must strictly target deterministic, high-impact business logic. Pure mathematical functions and string parsers previously embedded within `ui/main_window.py` and `core/ocr_engine.py` were extracted into a standalone, pure-Python module: `core/flow_math.py`.
-  - **Principle 3: Zero Extra Dependencies & Sub-Second Execution**:
-    Tests are built using Python's standard `unittest` framework (natively runnable via `python -m unittest` or `pytest`). By isolating domain math from heavy ML frameworks (`paddleocr` takes ~8 seconds to import), all 21 unit tests execute in **0.04 seconds**, offering immediate developer feedback.
-  - **Principle 4: High-Value Regression Protection**:
-    1. **Elevation String Cleaning & Extraction (`test_elevation_parsing.py`)**: Tests civil engineering suffixes (`FS`, `EL`, `TOP`, `BOT`), prefixes, negative elevations, bracket wrappers, and corrupt OCR noise, safeguarding regex updates.
-    2. **Flow Direction & Extrema Topology (`test_flow_math.py`)**: Verifies valley (LP), peak (HP), flat (FLAT), monotonic, and plateau sequences; ensures downhill arrow direction correction (water always flows downhill).
-    3. **Headless PDF Vector Export (`test_pdf_export.py`)**: Generates in-memory test PDFs to verify line annotations, closed-arrow line ends, delta freetext, and HP/LP freetext labels, including 90° rotated page support.
 
 ---
 
-## ✨ Deliverables
+## ✨ 交付物清单 / Deliverables
 
-| File / Folder | Purpose |
+| 文件/项目 (File / Folder) | 作用描述 (Purpose) |
 |---|---|
-| `launch.bat` | One-click silent launcher; auto-creates venv, installs deps, launches app |
-| PP-OCRv6 model cache | Auto-downloaded from HuggingFace to `~/.paddlex/official_models/PP-OCRv6_tiny_rec_onnx/` (4.3MB) |
-| Registry settings | Managed via `QSettings`; no extra local cache files generated |
-| `flowline_checker/core/flow_math.py` | Pure calculation module decoupling domain logic from UI |
-| `tests/` | Unit test suite (21 test cases, 0.04s runtime, zero extra dependencies) |
-| `design_history_log.md` | This file — bilingual development and design record |
-
+| `launch.bat` | 一键静默启动脚本；自动建 venv、装依赖、启动应用 (One-click silent launcher) |
+| PP-OCRv6 model cache | 首次运行自动从 HuggingFace 下载至本地的 4.3MB 离线模型 (Local offline OCR model) |
+| Registry settings | 基于 `QSettings` 管理的注册表配置，零本地缓存冗余 (Managed via QSettings) |
+| `flowline_checker/core/flow_math.py` | 纯计算与正则解析模块，业务与 UI 彻底解耦 (Pure calculation & parsing logic) |
+| `tests/` | 单元测试套件（21 个用例，0.04s 运行时间，零额外测试依赖）(Unit test suite) |
+| `.github/workflows/test.yml` | GitHub Actions CI 自动化测试流水线 (GitHub Actions CI workflow) |
+| `design_history_log.md` | 本文档——中英双语开发与设计决策记录 (Bilingual development and design record) |
