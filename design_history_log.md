@@ -16,16 +16,16 @@
 
 ## 🛠 核心功能新增 (Feature Log)
 
-### 1. 极值自动标注 (HP/LP Extrema Labeling) ✨ *New*
+### 1. 极值自动标注 (HP/LP Extrema Labeling)
 *   **功能描述**：在连续绘制的一段流线中，程序会自动执行几何拓扑分析。
 *   **实现细节**：对于中间点，若双侧均高于/低于该点，则自动标注 **HP (高点)** 或 **LP (低点)**。
 *   **视觉增强**：采用洋红色 (HP) 与蓝色 (LP) 双色区分，并支持随字号滑动条动态缩放。
 
-### 2. 文件夹路径记忆 (Directory Persistence) ✨ *New*
+### 2. 文件夹路径记忆 (Directory Persistence)
 *   **功能描述**：程序重启后会精准记得您上次处理工程文件的位置。
 *   **技术实现**：引入 `QSettings` 注册表级持久化，分别记录“上次打开路径”与“上次导出路径”。
 
-### 3. 对象级编辑与快捷键 (Object Editing & Hotkeys) ✨ *New*
+### 3. 对象级编辑与快捷键 (Object Editing & Hotkeys)
 *   **实体打包**：引入 `ArrowGroup` 把线、箭帽、差值数字打包成一个选区实体。
 *   **选中反馈**：点击箭头后会出现蓝色虚线选框，方便确认编辑目标。
 *   **捷径支持**：
@@ -47,16 +47,16 @@
 *   **透明化报错**：若模型失效，程序弹出详细错误窗口告知原因，不发生闪退。
 *   **模型标识展示**：对话框中显示模型来源，方便监控服务状态。
 
-### 7. 原生 PDF 矢量文本与数字导出 (Native PDF Text & Numerical Annotations) ✨ *New*
+### 7. 原生 PDF 矢量文本与数字导出 (Native PDF Text & Numerical Annotations)
 *   **功能描述**：在导出 PDF 标注时，除了红色水流箭头，程序现在还会以原生矢量 PDF 注释形式，导出高程差数字和“HP/LP”文字标注。
 *   **数学排版与偏置**：高程差数字会自动放置在线段几何中点，并沿着垂直于箭线的法线方向自动进行微调偏置（Tangential Offset），以避免文字与线条重叠。
 *   **极值点标签去重**：在多段流线共享同一个高程节点时，通过页面级坐标哈希去重（`drawn_labels`），确保同一个高低点标签在 PDF 文件中只绘制一次，绝不发生文字重合重叠。
 
-### 8. PDF 标注旋转与排版自适应 (PDF Annotation Rotation & Dynamic Sizing) ✨ *New*
+### 8. PDF 标注旋转与排版自适应 (PDF Annotation Rotation & Dynamic Sizing)
 *   **解决旋转偏转**：修复了在旋转 PDF 页面中导出文字与数字时逆时针偏转的问题。通过传递当前页面的 `page.rotation` 旋转参数，确保导出的 FreeText 原生注释水平直立、无裁剪、不换行。
 *   **动态宽高对调**：在 90° 或 270° 旋转的页面中，自动对调文字包围盒的宽度与高度，彻底杜绝了因空间受限导致的文本折行与截断。
 
-### 9. 异步非阻塞后台 OCR 与可点击编辑数字 (Asynchronous Background OCR & Interactive Editing) ✨ *New*
+### 9. 异步非阻塞后台 OCR 与可点击编辑数字 (Asynchronous Background OCR & Interactive Editing)
 *   **后台并发处理**：引入 `OCRWorker` 线程，将 OCR 请求剥离主线程。框选数字后，界面立即恢复红十字光标，用户可连续快速绘制下一个点。
 *   **暂存状态反馈**：框选区域左侧会立即生成蓝色的暂存数字（初始为 `...`，解析完毕显示数字，识别错误显示 `?`）。
 *   **直接单击修改**：支持用户在点击 "Done" 完成计算前，随时单击任意蓝色数字唤起输入框进行手动修改和二次确认，大幅缩短流线校对时间。
@@ -199,16 +199,16 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 
 ## 🛠 Feature Log
 
-### 1. Automatic Extrema Labeling (HP/LP) ✨ *New*
+### 1. Automatic Extrema Labeling (HP/LP)
 - **What it does**: After a flowline sequence is drawn, the app performs geometric topology analysis on all intermediate points.
 - **Logic**: If a point's value is lower than both neighbors → labeled **LP (Low Point)**; higher than both → labeled **HP (High Point)**.
 - **Visual**: HP labels are rendered in magenta, LP labels in blue. Both scale dynamically with the text-size slider.
 
-### 2. Directory Persistence ✨ *New*
+### 2. Directory Persistence
 - **What it does**: The app remembers the last folder used for both opening files and exporting images, even after a restart.
 - **Implementation**: Uses Qt's `QSettings` for registry-level persistence, storing separate keys for "last opened dir" and "last exported dir".
 
-### 3. Object-Level Editing & Keyboard Shortcuts ✨ *New*
+### 3. Object-Level Editing & Keyboard Shortcuts
 - **Arrow grouping**: Introduced `ArrowGroup` to bundle the line body, arrowhead polygon, and delta-value text into a single selectable entity.
 - **Selection feedback**: Clicking an arrow shows a blue dashed bounding box, consistent with CAD-style selection UX.
 - **Shortcuts**:
@@ -230,16 +230,16 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - **Error Transparency**: Displays clear error dialogs explaining failure causes without crashing.
 - **Model Display**: Displayed active model origin in the confirmation dialog.
 
-### 7. Native PDF Text & Numerical Annotations ✨ *New*
+### 7. Native PDF Text & Numerical Annotations
 - **What it does**: When exporting to PDF, the program now embeds the actual numerical elevation difference values and the "HP" / "LP" extrema labels as native, high-quality vector FreeText annotations.
 - **Placement & Offsets**: Automatically positions the delta numbers at the midpoint of each segment, applying a perpendicular offset (Tangential Offset) to prevent text from overlapping with the line.
 - **Label Deduplication**: Uses a page-level coordinate set (`drawn_labels`) to ensure that shared elevation nodes only draw their "HP" or "LP" labels once on a single page, avoiding messy visual overlaps.
 
-### 8. PDF Annotation Rotation & Layout Adaptability ✨ *New*
+### 8. PDF Annotation Rotation & Layout Adaptability
 - **Fixed Rotation Skew**: Resolved the issue where annotation text and numbers in exported PDFs were rotated 90° counter-clockwise. By passing `rotate=page.rotation` to the PyMuPDF annotation builder, text renders horizontally.
 - **Dynamic Box Dimension Swapping**: Automatically swaps bounding box width and height on 90°/270° rotated PDF pages, preventing text wrapping or clipping.
 
-### 9. Asynchronous Non-blocking OCR & Interactive Editing ✨ *New*
+### 9. Asynchronous Non-blocking OCR & Interactive Editing
 - **Non-blocking Drawing Workflow**: Spawns a background thread (`OCRWorker`) for OCR processing. The GUI immediately returns to `ANCHOR` mode, letting users draw subsequent points continuously without waiting.
 - **Temporary Clickable Blue Labels**: Renders a temporary blue number (initially `...`, updates to the float value, or `?` on OCR failure) to the left of each selection box.
 - **Interactive Editing**: Users can single-click any blue number at any time to open `ValueDialog` and manually correct it prior to clicking "Done".
