@@ -84,6 +84,22 @@
     *   当已添加若干完整标高点时，按 `Ctrl+Z` 仅弹出并清除末尾点及其视觉元素与 OCR 线程，**前面已绘制的节点、连接虚线和识别结果完全保留**。
 *   **无缝续画与全局放弃**：撤销后界面与光标无缝维持在 `ANCHOR` 准备状态，用户可直接点击新位置继续添加后续点。若需一次性放弃整条在建流线，依然可通过键盘 `Esc` 键一键全局重置。
 
+### 11. 单元测试体系与核心计算解耦 (Unit Testing & Pure Logic Decoupling) ✨ *New*
+*   **半自动工具的测试建立原则（Testing Principles for Semi-Automated Tools）**：
+    *   **原则 1：坚决不做“全自动 UI 交互测试”（No Flaky E2E GUI Tests）**
+        *   半自动工具的核心特征在于**人是验证与纠错闭环的关键一环**（人手点选物理锚点、人眼框选高程、人眼复核 OCR 识别值并在异常时单击快速修改）。
+        *   若采用自动化测试模拟 Qt 鼠标点击、画框拖拽与异步线程等待，测试脚本将异常臃肿脆弱，界面微调几个像素就会频繁报错（Flaky），维护成本是业务代码的数倍，ROI 极低。界面的流畅与交互体验应由发布前的**轻量手工 Checklist** 验证。
+    *   **原则 2：算法剥离，锁定强确定性（Decouple Logic to Lock Determinism）**
+        *   测试应当精准瞄准“纯算法、强确定性、一旦出错破坏性大且隐蔽”的模块。
+        *   将原本散落在 `ui/main_window.py` 与 `core/ocr_engine.py` 内部的标高解析、高差与平水计算、流向判断、HP/LP 极值判定彻底剥离为纯 Python 模块 `core/flow_math.py`，使核心逻辑彻底脱离 Qt 与重型依赖。
+    *   **原则 3：零外部测试依赖与毫秒级即时反馈（Zero Extra Deps & Sub-Second Execution）**
+        *   采用 Python 内置的 `unittest` 标准库组织测试（同时原生兼容 `pytest`），不引入任何额外的第三方测试框架。
+        *   避免在核心逻辑测试中导入重型 ML 库（`paddleocr` 模块加载耗时近 8 秒）；通过独立计算模块，全套 21 个单元测试可在 **0.04 秒**内瞬间完成，为开发提供零心智负担的即时反馈。
+    *   **原则 4：聚焦覆盖三大易退化（Regression-Prone）核心区域**：
+        1.  **标高文本正则清洗与数值提取 (`test_elevation_parsing.py`)**：覆盖常用工程后缀（`FS`, `EL`, `TOP`, `BOT`）、前缀、负高程、括号包裹及空/噪点字符串，防止后续修改正则时造成格式退化。
+        2.  **几何流向与极值拓扑 (`test_flow_math.py`)**：严格验证 V 型谷地（LP）、单峰（HP）、平水（FLAT）、单调坡度以及平台段（无误判极值）的拓扑判定；锁定水往低处流的端点自动校准逻辑。
+        3.  **无头 PDF 矢量导出 (`test_pdf_export.py`)**：基于 PyMuPDF 内存虚拟单页验证原生线段箭头、差值文本、极值点 FreeText 注释的完整性，并覆盖 90° 旋转图纸的导出容错。
+
 ### 🐞 核心解决的问题追溯
 
 ### Bug: ArrowGroup 绘制覆盖导致的选框失踪
@@ -145,7 +161,9 @@
 1.  **`launch.bat`**：一键静默启动，自动创建 venv、安装依赖、启动应用。
 2.  **PP-OCRv6 模型缓存**：首次运行自动从 HuggingFace 下载至 `~/.paddlex/official_models/PP-OCRv6_tiny_rec_onnx/`（4.3MB）。
 3.  **持久化配置文件**：通过注册表管理，不产生多余的本地缓存文件。
-4.  **`design_history_log.md`**：本文档——中英双语开发记录。
+4.  **`flowline_checker/core/flow_math.py`**：纯计算与正则解析模块，剥离业务逻辑与 GUI。
+5.  **`tests/`**：轻量单元测试套件（21 个用例，0.04s 运行时间，零额外测试依赖）。
+6.  **`design_history_log.md`**：本文档——中英双语开发记录。
 
 ---
 
@@ -305,14 +323,29 @@ This tool is a lightweight, zero-configuration standalone desktop application fo
 - **Kept from that work** (independent of calibration): `_finish_flowline` returning True/False with page-nav/export aborting when blocked; `label_text` as a required `add_arrow_annotation` parameter; the shared `label_offset_distance()` helper; measured freetext box width via `fitz.get_text_length`; multi-line label support in the PDF exporter; and FLAT rendering for equal elevations.
 - **Lesson**: A feature that computes a plausible-looking number from an unreliable measurement is worse than not showing the number — validate the measurement's trustworthiness in the field before building the display on top of it.
 
+### Architecture & Testing: Unit Test Suite & Pure Logic Decoupling
+- **Testing Principles for Semi-Automated Engineering Tools**:
+  - **Principle 1: Avoid Flaky End-to-End GUI Testing (Anti-Pattern)**:
+    In semi-automated desktop tools, human eyes and manual clicks form an essential part of the closed-loop verification (pointing physical locations, box-selecting text, visually confirming OCR readings, single-click editing). Automating Qt mouse events, bounding box drags, and asynchronous worker waits creates brittle, flaky tests with prohibitive maintenance overhead and poor ROI. UI and interaction quality are best verified via a lightweight manual pre-release checklist.
+  - **Principle 2: Decouple Pure Logic to Lock Determinism**:
+    Tests must strictly target deterministic, high-impact business logic. Pure mathematical functions and string parsers previously embedded within `ui/main_window.py` and `core/ocr_engine.py` were extracted into a standalone, pure-Python module: `core/flow_math.py`.
+  - **Principle 3: Zero Extra Dependencies & Sub-Second Execution**:
+    Tests are built using Python's standard `unittest` framework (natively runnable via `python -m unittest` or `pytest`). By isolating domain math from heavy ML frameworks (`paddleocr` takes ~8 seconds to import), all 21 unit tests execute in **0.04 seconds**, offering immediate developer feedback.
+  - **Principle 4: High-Value Regression Protection**:
+    1. **Elevation String Cleaning & Extraction (`test_elevation_parsing.py`)**: Tests civil engineering suffixes (`FS`, `EL`, `TOP`, `BOT`), prefixes, negative elevations, bracket wrappers, and corrupt OCR noise, safeguarding regex updates.
+    2. **Flow Direction & Extrema Topology (`test_flow_math.py`)**: Verifies valley (LP), peak (HP), flat (FLAT), monotonic, and plateau sequences; ensures downhill arrow direction correction (water always flows downhill).
+    3. **Headless PDF Vector Export (`test_pdf_export.py`)**: Generates in-memory test PDFs to verify line annotations, closed-arrow line ends, delta freetext, and HP/LP freetext labels, including 90° rotated page support.
+
 ---
 
 ## ✨ Deliverables
 
-| File | Purpose |
+| File / Folder | Purpose |
 |---|---|
 | `launch.bat` | One-click silent launcher; auto-creates venv, installs deps, launches app |
 | PP-OCRv6 model cache | Auto-downloaded from HuggingFace to `~/.paddlex/official_models/PP-OCRv6_tiny_rec_onnx/` (4.3MB) |
 | Registry settings | Managed via `QSettings`; no extra local cache files generated |
+| `flowline_checker/core/flow_math.py` | Pure calculation module decoupling domain logic from UI |
+| `tests/` | Unit test suite (21 test cases, 0.04s runtime, zero extra dependencies) |
 | `design_history_log.md` | This file — bilingual development and design record |
 

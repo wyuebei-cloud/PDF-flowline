@@ -143,19 +143,8 @@ class OCREngine:
     @staticmethod
     def _extract_elevation_value(text: str):
         """从 OCR 文本中提取浮点数值"""
-        import re
-        clean = text.strip()
-
-        # 去掉前缀: "EL 42.30" -> "42.30"
-        clean = re.sub(r'^(EL|EL\.|ELEV|TOP|BOT)[.\s]*', '', clean, flags=re.IGNORECASE).strip()
-        # 去掉后缀: "31.95 FS" -> "31.95"
-        clean = re.sub(r'[.\s]*(FS|EL|EL\.|ELEV|TOP|BOT)\s*$', '', clean, flags=re.IGNORECASE).strip()
-
-        # 使用正则提取有效浮点数/整数（支持正负号、括号、中括号等包裹的情况）
-        match = re.search(r'[-+]?\d+(?:\.\d+)?', clean)
-        if match:
-            try:
-                return float(match.group(0))
-            except ValueError:
-                return None
-        return None
+        try:
+            from core.flow_math import extract_elevation_value
+        except ImportError:
+            from flowline_checker.core.flow_math import extract_elevation_value
+        return extract_elevation_value(text)

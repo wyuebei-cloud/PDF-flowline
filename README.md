@@ -1,5 +1,7 @@
 # PDF-flowline
 
+[![Unit Tests](https://github.com/wyuebei-cloud/PDF-flowline/actions/workflows/test.yml/badge.svg)](https://github.com/wyuebei-cloud/PDF-flowline/actions/workflows/test.yml)
+
 **A lightweight desktop tool for civil engineers: box-select elevation numbers on scanned grading plans and automatically generate flow direction arrows.**
 
 ![screenshot](assets/screenshot.png)

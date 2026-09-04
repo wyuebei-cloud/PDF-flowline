@@ -11,6 +11,7 @@ from ui.pdf_viewer import PDFViewer
 from ui.value_dialog import ValueDialog
 from core.pdf_handler import PDFHandler, label_offset_distance
 from core.ocr_engine import OCREngine
+from core.flow_math import compute_extrema_labels, format_delta_text, determine_flow_segment
 from models.data_types import ElevationPoint, FlowArrow
 
 class OCRWorker(QThread):
@@ -277,16 +278,7 @@ class MainWindow(QMainWindow):
         self.ocr_workers.clear()
 
         # 2. HP/LP Computation for this sequence
-        if len(self.points) >= 3:
-            for i in range(1, len(self.points) - 1):
-                prev_val = self.points[i-1].value
-                curr_val = self.points[i].value
-                next_val = self.points[i+1].value
-                
-                if curr_val < prev_val and curr_val < next_val:
-                    self.points[i].label = "LP"
-                elif curr_val > prev_val and curr_val > next_val:
-                    self.points[i].label = "HP"
+        compute_extrema_labels(self.points)
 
         # 3. Save completed segments logically
         if len(self.points) > 1:
@@ -308,11 +300,7 @@ class MainWindow(QMainWindow):
         return True
 
     def _format_arrow_text(self, p1, p2):
-        delta = abs(p1.value - p2.value)
-        if delta == 0:
-            # Flat segment: no meaningful flow direction
-            return "FLAT"
-        return f"{delta:.2f}"
+        return format_delta_text(p1.value, p2.value)
 
     def _refresh_all_arrows(self):
         # Clear currently drawn permanent arrows
@@ -458,9 +446,7 @@ class MainWindow(QMainWindow):
                     text_item.setPos(rect.x() - rect_text.width() - 5, rect.center().y() - rect_text.height() / 2)
 
     def _draw_final_arrow(self, p1, p2):
-        is_reverse = p2.value > p1.value
-        is_flat = p1.value == p2.value
-        start, end = (p1, p2) if not is_reverse else (p2, p1)
+        start, end, is_flat = determine_flow_segment(p1, p2)
 
         pen = QPen(QColor("red"), 3)
         brush = QColor("red")
@@ -610,8 +596,7 @@ class MainWindow(QMainWindow):
                 for page_idx, segments in self.all_finished_segments.items():
                     drawn_labels = set()
                     for p1, p2 in segments:
-                        is_reverse = p2.value > p1.value
-                        start, end = (p1, p2) if not is_reverse else (p2, p1)
+                        start, end, _ = determine_flow_segment(p1, p2)
                         arrow_size = self.arrow_size_slider.value()
                         text_size = self.text_size_slider.value()
                         
